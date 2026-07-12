@@ -40,9 +40,10 @@ git status
 
 ### 3. Deploy
 
-Click **Apply**. The first build can take **10–20 minutes** (Flutter web compile).
+Click **Apply**. The Docker image is **Node-only** (API + `/admin`) so it fits Render’s free tier.  
+Citizen Flutter web is optional (see below).
 
-When status is **Live**, open the service URL.
+When status is **Live**, open the service URL. Root `/` redirects to `/admin` until Flutter web is bundled.
 
 ### 4. Seed demo accounts (once)
 
@@ -131,10 +132,33 @@ docker run --rm -p 3000:3000 `
 
 ---
 
+## Optional: include citizen Flutter web
+
+On your PC (then commit and push):
+
+```powershell
+cd C:\Users\ramse\source\repos\EcoWatch
+flutter build web --release
+New-Item -ItemType Directory -Force -Path backend\public\web | Out-Null
+Copy-Item -Recurse -Force build\web\* backend\public\web\
+git add backend/public/web
+git commit -m "Add Flutter web build for hosting"
+git push
+```
+
+## If deploy failed
+
+1. Open the failed deploy → **Logs** and copy the red error lines.
+2. Common fixes already in this repo:
+   - **No Flutter in Docker** (avoids OOM / image pull failures)
+   - **Postgres SSL** enabled in production (`pool.js`)
+3. Confirm env vars on the web service: `DATABASE_URL`, `JWT_SECRET`, `NODE_ENV=production`.
+4. Click **Manual Deploy → Clear build cache & deploy**.
+
 ## Files added for hosting
 
 | File | Role |
 |------|------|
-| `Dockerfile` | Builds Flutter web + runs Node API |
+| `Dockerfile` | Node API + admin portal |
 | `render.yaml` | One-click Render database + web service |
 | `.dockerignore` | Keeps the image build smaller |

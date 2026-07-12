@@ -83,9 +83,13 @@ app.get('/admin/officer/:slug', (req, res) => {
   res.redirect('/admin');
 });
 
-// Citizen Flutter web app (release build) — same origin as API for HTTPS/GPS.
-const webAppPath = path.join(__dirname, '../../build/web');
-if (fs.existsSync(webAppPath)) {
+// Citizen Flutter web (optional): backend/public/web or repo build/web
+const webAppPath = [
+  path.join(__dirname, '../public/web'),
+  path.join(__dirname, '../../build/web'),
+].find((p) => fs.existsSync(path.join(p, 'index.html')));
+
+if (webAppPath) {
   app.use(express.static(webAppPath));
   app.get('*', (req, res, next) => {
     if (
@@ -103,6 +107,8 @@ if (fs.existsSync(webAppPath)) {
       if (err) next();
     });
   });
+} else {
+  app.get('/', (_req, res) => res.redirect('/admin'));
 }
 
 app.use((err, _req, res, _next) => {
