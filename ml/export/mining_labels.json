@@ -1,0 +1,11 @@
+{
+  "model_version": "ecowatch-mining-v2",
+  "image_size": 224,
+  "classes": [
+    "illegal_mining",
+    "not_mining"
+  ],
+  "positive_class": "illegal_mining",
+  "preprocess": "mobilenet_v2_in_model",
+  "input_range": "0-255"
+}

@@ -1,0 +1,30 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: ecowatch-postgres
+    environment:
+      POSTGRES_USER: ecowatch
+      POSTGRES_PASSWORD: ecowatch
+      POSTGRES_DB: ecowatch
+    ports:
+      - "5432:5432"
+    volumes:
+      - ecowatch_pg_data:/var/lib/postgresql/data
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+
+  minio:
+    image: minio/minio:latest
+    container_name: ecowatch-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ecowatch
+      MINIO_ROOT_PASSWORD: ecowatch123
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - ecowatch_minio_data:/data
+
+volumes:
+  ecowatch_pg_data:
+  ecowatch_minio_data:
