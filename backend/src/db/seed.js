@@ -45,6 +45,15 @@ async function upsertUser({ email, name, role, agency, category, password }) {
 async function seed() {
   await runMigrations();
 
+  // Ensure emergency/police roles exist even if an older schema was applied first
+  await pool.query(`
+    INSERT INTO roles (name, label, description, can_view, can_update, can_export, can_manage_users) VALUES
+      ('emergency_officer', 'Emergency Response Officer', 'Emergency incidents for Fire Service and NADMO', TRUE, TRUE, FALSE, FALSE),
+      ('police_support', 'Police Support', 'Law enforcement support for criminal environmental offences', TRUE, TRUE, FALSE, FALSE)
+    ON CONFLICT (name) DO NOTHING
+  `);
+  await pool.query('DROP INDEX IF EXISTS idx_users_one_admin_per_agency');
+
   console.log(`\nPlatform owner: ${PLATFORM_OWNER.name}\n`);
   console.log('Municipal roles:');
 

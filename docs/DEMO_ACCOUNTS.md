@@ -49,10 +49,15 @@ Pattern: `{agency}.officer@ecowatch.gov` / `{agency}off123`
 
 ## Emergency officers
 
+Use these **exact** emails and passwords (password has no dots):
+
 | Email | Password |
 |-------|----------|
 | `nadmo.emergency@ecowatch.gov` | `nadmoemg123` |
 | `fire.emergency@ecowatch.gov` | `fireemg123` |
+
+Not `nadmo123` / `fire123` (those are agency **admin** accounts).  
+Not `nadmo.emergency123` — the password is `nadmoemg123`.
 
 ---
 

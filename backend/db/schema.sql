@@ -20,6 +20,8 @@ INSERT INTO roles (name, label, description, can_view, can_update, can_export, c
   ('municipal_admin', 'Municipal Administrator', 'Municipality-wide monitoring and agency coordination', TRUE, TRUE, TRUE, TRUE),
   ('agency_admin', 'Agency Administrator', 'Manages incidents routed to their agency mandate', TRUE, TRUE, TRUE, FALSE),
   ('environmental_officer', 'Environmental Officer', 'Field investigator for assigned incidents', TRUE, TRUE, FALSE, FALSE),
+  ('emergency_officer', 'Emergency Response Officer', 'Emergency incidents for Fire Service and NADMO', TRUE, TRUE, FALSE, FALSE),
+  ('police_support', 'Police Support', 'Law enforcement support for criminal environmental offences', TRUE, TRUE, FALSE, FALSE),
   ('researcher', 'Researcher', 'Anonymized analytics and research export', TRUE, FALSE, TRUE, FALSE),
   ('citizen', 'Citizen', 'Registered citizen reporter', TRUE, FALSE, FALSE, FALSE)
 ON CONFLICT (name) DO NOTHING;
@@ -37,12 +39,9 @@ CREATE TABLE users (
   last_login_at TIMESTAMPTZ
 );
 
-CREATE UNIQUE INDEX idx_users_one_admin_per_agency
-  ON users (assigned_agency)
-  WHERE assigned_agency IS NOT NULL;
-
-CREATE INDEX idx_users_assigned_category ON users(assigned_category);
-CREATE INDEX idx_users_assigned_agency ON users(assigned_agency);
+-- Multiple staff per agency (admins + officers + emergency)
+CREATE INDEX IF NOT EXISTS idx_users_assigned_category ON users(assigned_category);
+CREATE INDEX IF NOT EXISTS idx_users_assigned_agency ON users(assigned_agency);
 
 CREATE TABLE reports (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
