@@ -45,15 +45,30 @@ Citizen Flutter web is optional (see below).
 
 When status is **Live**, open the service URL. Root `/` redirects to `/admin` until Flutter web is bundled.
 
-### 4. Seed demo accounts (once)
+### 4. Seed demo accounts (no Shell / no payment)
 
-On the Render service → **Shell** (or one-off job), run:
+Render **Shell is paid**. Use either method:
 
-```bash
-cd /app/backend && node src/db/seed.js
+**A — Env var (easiest)**  
+On the web service → **Environment** → add:
+
+| Key | Value |
+|-----|--------|
+| `SEED_ON_BOOT` | `true` |
+
+Then **Manual Deploy → Deploy latest commit**.  
+On startup the server creates the demo users. Logins: [DEMO_ACCOUNTS.md](DEMO_ACCOUNTS.md).
+
+**B — Seed from your PC**  
+1. Render Postgres → copy **External Database URL**  
+2. On your PC:
+
+```powershell
+cd C:\Users\ramse\source\repos\EcoWatch\backend
+$env:DATABASE_URL="paste-external-url-here"
+$env:NODE_ENV="production"
+npm run db:seed
 ```
-
-Or from your PC (replace URL and use the Render Postgres external connection string if you prefer local seed — usually Shell on Render is simpler).
 
 ### 5. Point the Android app (optional)
 

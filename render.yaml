@@ -29,3 +29,6 @@ services:
         value: production
       - key: AT_SMS_ENABLED
         value: "false"
+      # Creates demo logins on boot (safe to leave on for thesis demos)
+      - key: SEED_ON_BOOT
+        value: "true"

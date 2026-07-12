@@ -15,5 +15,5 @@ ENV NODE_ENV=production
 ENV PORT=3000
 EXPOSE 3000
 
-# Migrate schema, then serve API + /admin (+ citizen web if present under public/web)
-CMD ["sh", "-c", "node src/db/migrate.js && node src/index.js"]
+# Migrate always. Seed demo accounts when SEED_ON_BOOT=true (no paid Render Shell needed).
+CMD ["sh", "-c", "node src/db/migrate.js && if [ \"$SEED_ON_BOOT\" = \"true\" ]; then node src/db/seed.js; fi && node src/index.js"]
