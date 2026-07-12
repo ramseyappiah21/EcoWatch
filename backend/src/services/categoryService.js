@@ -373,7 +373,7 @@ function emailForRole(role, agencyKey = null) {
     return getAgencyByKey(agencyKey)?.email || `${agencyKey}@ecowatch.gov`;
   }
   if (agencyKey && role === 'environmental_officer') return `${agencyKey}.officer@ecowatch.gov`;
-  if (agencyKey && role === 'emergency_officer') return `${agencyKey}.emergency@ecowatch.gov`;
+  if (agencyKey && role === 'emergency_officer') return `${agencyKey}emg@ecowatch.gov`;
   if (role === 'police_support') return 'police@ecowatch.gov';
   return 'admin@ecowatch.gov';
 }

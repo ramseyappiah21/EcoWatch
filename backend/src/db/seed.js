@@ -122,6 +122,15 @@ async function seed() {
         category: primaryCategory,
         password: passwordForRole('emergency_officer', agency.key),
       });
+      // Legacy alias (older docs used nadmo.emergency@…)
+      await upsertUser({
+        email: `${agency.key}.emergency@ecowatch.gov`,
+        name: `${agency.short} Emergency Officer`,
+        role: 'emergency_officer',
+        agency: agency.key,
+        category: primaryCategory,
+        password: passwordForRole('emergency_officer', agency.key),
+      });
     }
   }
 
@@ -142,12 +151,13 @@ async function seed() {
   );
 
   console.log('\nPortal: http://localhost:3000/admin');
-  console.log('Super Admin:', emailForRole('super_admin'), passwordForRole('super_admin'));
-  console.log('Municipal Admin:', emailForRole('municipal_admin'), passwordForRole('municipal_admin'));
-  console.log('Researcher:', emailForRole('researcher'), passwordForRole('researcher'));
-  console.log('Agency pattern: {agency}@ecowatch.gov / {agency}123');
-  console.log('Officer: {agency}.officer@ecowatch.gov / {agency}off123');
-  console.log('Emergency: nadmo.emergency@ / fire.emergency@ … emg123');
+  console.log('Super Admin:     superadmin@ecowatch.gov / superadmin123');
+  console.log('Municipal Admin: municipal@ecowatch.gov / municipal123');
+  console.log('Researcher:      researcher@ecowatch.gov / researcher123');
+  console.log('Agency admin:    {agency}@ecowatch.gov / {agency}123');
+  console.log('Officer:         {agency}.officer@ecowatch.gov / {agency}off123');
+  console.log('Emergency NADMO: nadmoemg@ecowatch.gov / nadmoemg123');
+  console.log('Emergency Fire:  fireemg@ecowatch.gov / fireemg123');
   await pool.end();
 }
 

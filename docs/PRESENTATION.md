@@ -84,7 +84,7 @@ Full list: **[DEMO_ACCOUNTS.md](DEMO_ACCOUNTS.md)**
 | Municipal Admin | municipal@ecowatch.gov | municipal123 |
 | EPA Admin | epa@ecowatch.gov | epa123 |
 | EPA Officer | epa.officer@ecowatch.gov | epaoff123 |
-| NADMO Emergency | nadmo.emergency@ecowatch.gov | nadmoemg123 |
+| NADMO Emergency | nadmoemg@ecowatch.gov | nadmoemg123 |
 | Researcher | researcher@ecowatch.gov | researcher123 |
 
 ## Talking points
