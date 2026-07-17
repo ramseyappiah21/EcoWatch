@@ -1,12 +1,14 @@
 import 'dart:io';
 
 import 'package:dio/dio.dart';
+import 'package:http_parser/http_parser.dart' as http_parser;
 
 import '../../core/errors/app_exception.dart';
 import '../../core/network/api_client.dart';
 import '../../core/network/api_mappers.dart';
 import '../../core/network/dio_api_client.dart';
 import '../../models/enums.dart';
+import '../../models/media.dart';
 import '../../models/report.dart';
 import 'report_repository_impl.dart';
 
@@ -15,17 +17,43 @@ class HttpReportRemoteDataSource implements ReportRemoteDataSource {
 
   final DioApiClient _client;
 
+  http_parser.MediaType _contentTypeFor(MediaAttachment media, String filename) {
+    final mime = media.mimeType;
+    if (mime != null && mime.contains('/')) {
+      final parts = mime.split('/');
+      return http_parser.MediaType(parts[0], parts[1]);
+    }
+    final lower = filename.toLowerCase();
+    if (lower.endsWith('.png')) return http_parser.MediaType('image', 'png');
+    if (lower.endsWith('.webp')) return http_parser.MediaType('image', 'webp');
+    if (lower.endsWith('.gif')) return http_parser.MediaType('image', 'gif');
+    if (lower.endsWith('.mp4')) return http_parser.MediaType('video', 'mp4');
+    if (lower.endsWith('.mov')) {
+      return http_parser.MediaType('video', 'quicktime');
+    }
+    if (media.type == MediaType.video) {
+      return http_parser.MediaType('video', 'mp4');
+    }
+    return http_parser.MediaType('image', 'jpeg');
+  }
+
   @override
   Future<Report> submitReport(Report report) async {
     final files = <MultipartFile>[];
-    for (final media in report.media) {
-      if (media.localPath.isEmpty) continue;
+    final expectedMedia = report.media.where((m) => m.localPath.isNotEmpty).toList();
+    for (final media in expectedMedia) {
       final file = File(media.localPath);
-      if (!await file.exists()) continue;
+      if (!await file.exists()) {
+        throw NetworkException(
+          'Attached media file is missing and could not be uploaded',
+        );
+      }
+      final filename = media.localPath.split(RegExp(r'[\\/]')).last;
       files.add(
         await MultipartFile.fromFile(
           media.localPath,
-          filename: media.localPath.split(Platform.pathSeparator).last,
+          filename: filename.isEmpty ? 'evidence.jpg' : filename,
+          contentType: _contentTypeFor(media, filename),
         ),
       );
     }

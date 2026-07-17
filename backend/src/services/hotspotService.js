@@ -100,6 +100,35 @@ function detectHotspots(reports, options = {}) {
   });
 }
 
+function computeHotspotGrowth(reports, days = 30) {
+  const points = [];
+  const end = new Date();
+  end.setHours(0, 0, 0, 0);
+
+  for (let d = days; d >= 0; d--) {
+    const dayEnd = new Date(end);
+    dayEnd.setDate(dayEnd.getDate() - d);
+    const dayStart = new Date(dayEnd);
+    dayStart.setDate(dayStart.getDate() - 30);
+
+    const window = reports.filter((r) => {
+      const t = new Date(r.created_at);
+      return t >= dayStart && t < dayEnd;
+    });
+
+    const hotspots = detectHotspots(window);
+    const totalInHotspots = hotspots.reduce((s, h) => s + h.reportCount, 0);
+
+    points.push({
+      date: dayEnd.toISOString().slice(0, 10),
+      hotspotCount: hotspots.length,
+      totalReportsInHotspots: totalInHotspots,
+    });
+  }
+
+  return points;
+}
+
 async function fetchRecentReports(pool, { days = WINDOW_DAYS, scope = null } = {}) {
   const scopeClause = scope?.clause ?? '';
   const params = scope?.params ?? [];
@@ -114,6 +143,7 @@ async function fetchRecentReports(pool, { days = WINDOW_DAYS, scope = null } = {
 
 module.exports = {
   detectHotspots,
+  computeHotspotGrowth,
   fetchRecentReports,
   effectiveMinPts,
   EPS_METERS,

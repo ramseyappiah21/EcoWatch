@@ -124,7 +124,7 @@ class AdminScreen extends ConsumerWidget {
           '• Image included: +2\n'
           '• Nearby reports (1 km): +3\n'
           '• Recent report (24h): +1\n\n'
-          'Hotspot detection uses DBSCAN (current clusters) plus predictive models (Random Forest, XGBoost, LSTM) for 7-day forecasts.',
+          'Hotspot detection uses DBSCAN clustering to surface current incident clusters.',
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('OK')),

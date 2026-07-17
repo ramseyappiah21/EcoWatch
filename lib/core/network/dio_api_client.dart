@@ -134,7 +134,15 @@ class DioApiClient implements ApiClient {
     for (final file in files) {
       formData.files.add(MapEntry('media', file));
     }
-    final response = await _dio.post<dynamic>(path, data: formData);
+    // Photos/videos need longer than the default 8s send timeout.
+    final response = await _dio.post<dynamic>(
+      path,
+      data: formData,
+      options: Options(
+        sendTimeout: const Duration(seconds: 90),
+        receiveTimeout: const Duration(seconds: 90),
+      ),
+    );
     return ApiResponse(
       statusCode: response.statusCode ?? 201,
       data: response.data as Map<String, dynamic>?,

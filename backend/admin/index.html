@@ -88,7 +88,6 @@
           <ul>
             <li><span class="swatch swatch-marker"></span> Pin — individual report</li>
             <li><span class="swatch swatch-current-high"></span> Solid circle — current hotspot (DBSCAN cluster)</li>
-            <li><span class="swatch swatch-predicted"></span> Dashed circle — predicted risk (next 7 days)</li>
           </ul>
           <p class="meta">Hotspot priority: <span class="priority-chip critical">critical</span> <span class="priority-chip high">high</span> <span class="priority-chip medium">medium</span></p>
         </div>
@@ -127,23 +126,6 @@
           <div class="chart-card chart-wide">
             <h3>Hotspot growth (DBSCAN, 30-day rolling)</h3>
             <div class="chart-wrap"><canvas id="chart-hotspot-growth"></canvas></div>
-          </div>
-        </div>
-        <div class="prediction-section">
-          <h2>Predictive hotspot detection</h2>
-          <p class="hint">Forecasts where incident clusters are likely in the <strong>next 7 days</strong>. Train models: <code>cd ml/hotspot && python train.py --database</code></p>
-          <div id="predicted-trend" class="prediction-trend"></div>
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Location</th>
-                  <th>Risk level</th>
-                  <th>Reports (30d)</th>
-                </tr>
-              </thead>
-              <tbody id="predictions-body"></tbody>
-            </table>
           </div>
         </div>
       </section>

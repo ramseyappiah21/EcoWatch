@@ -1,11 +1,9 @@
 const express = require('express');
 const { pool } = require('../db/pool');
-const { detectHotspots } = require('../services/hotspotService');
 const {
-  predictHotspots,
+  detectHotspots,
   computeHotspotGrowth,
-  computePredictedTrend,
-} = require('../services/hotspotPredictionService');
+} = require('../services/hotspotService');
 const { authMiddleware, requireRoles } = require('../middleware/auth');
 const {
   buildCategoryScope,
@@ -76,8 +74,6 @@ router.get('/', authMiddleware, requireRoles(...PORTAL_ROLES), async (req, res) 
 
   const hotspots = detectHotspots(recentRows);
   const hotspotGrowth = computeHotspotGrowth(recentRows);
-  const mlPredictions = predictHotspots(recentRows);
-  const predictedTrend = computePredictedTrend(recentRows, mlPredictions);
 
   res.json({
     period,
@@ -95,29 +91,18 @@ router.get('/', authMiddleware, requireRoles(...PORTAL_ROLES), async (req, res) 
     dailyTrend: trend.rows,
     hotspots,
     hotspotGrowth,
-    predictedHotspots: mlPredictions.predictions,
-    predictedTrend,
-    modelMetrics: mlPredictions.modelMetrics,
-    predictionSource: mlPredictions.source,
-    algorithms: mlPredictions.algorithms,
   });
 });
 
-/** GET /v1/analytics/predictions — ML hotspot forecast detail */
-router.get('/predictions', authMiddleware, requireRoles(...PORTAL_ROLES), async (req, res) => {
+/** GET /v1/analytics/hotspots — current hotspot detail */
+router.get('/hotspots', authMiddleware, requireRoles(...PORTAL_ROLES), async (req, res) => {
   const recentRows = await fetchScopedReports(req.user, 60);
   const hotspots = detectHotspots(recentRows);
-  const mlPredictions = predictHotspots(recentRows);
 
   res.json({
     currentHotspots: hotspots,
-    predictedHotspots: mlPredictions.predictions,
     hotspotGrowth: computeHotspotGrowth(recentRows),
-    predictedTrend: computePredictedTrend(recentRows, mlPredictions),
-    modelMetrics: mlPredictions.modelMetrics,
-    algorithms: mlPredictions.algorithms,
-    predictionSource: mlPredictions.source,
-    generatedAt: mlPredictions.generatedAt,
+    generatedAt: new Date().toISOString(),
   });
 });
 

@@ -1,5 +1,7 @@
 const express = require('express');
 const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
 const { pool } = require('../db/pool');
 const { generateTrackingToken } = require('../services/tokenService');
 const { computeSeverityForReport } = require('../services/severityService');
@@ -34,7 +36,9 @@ const {
 } = require('../services/categoryService');
 
 const router = express.Router();
-const upload = multer({ dest: 'uploads/tmp' });
+const uploadTmpDir = path.join(__dirname, '../../uploads/tmp');
+fs.mkdirSync(uploadTmpDir, { recursive: true });
+const upload = multer({ dest: uploadTmpDir });
 
 function resolveMediaUrl(storageUrl, req) {
   if (!storageUrl) return storageUrl;

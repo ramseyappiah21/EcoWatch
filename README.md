@@ -19,7 +19,7 @@ EcoWatch is a **shared municipal platform** owned by **Tarkwa-Nsuaem Municipal A
 - Audit logs (super admin, append-only)
 - Platform settings (super admin)
 - In-app notifications (including emergency severity alerts)
-- Predictive hotspot detection (ML)
+- DBSCAN hotspot detection with a 30-day growth trend
 - Researcher anonymized analytics and export
 
 ## Presentation

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>EcoWatch Tarkwa — Chapters 4 and 5</title>
+<title>EcoWatch Tarkwa - Chapters 4 and 5</title>
 <style>
   body { font-family: "Times New Roman", Times, serif; font-size: 12pt; line-height: 1.5; margin: 2.54cm; color: #000; }
   h1 { font-size: 16pt; font-weight: bold; text-align: center; page-break-before: always; margin-top: 0; text-transform: uppercase; }
@@ -11,8 +11,10 @@
   h3 { font-size: 12pt; font-weight: bold; margin-top: 14pt; }
   p { text-align: justify; margin: 0 0 10pt 0; }
   table { border-collapse: collapse; width: 100%; margin: 12pt 0; font-size: 11pt; }
-  th, td { border: 1px solid #000; padding: 6pt 8pt; vertical-align: top; }
-  th { background: #f0f0f0; text-align: left; }
+  th, td { border: 1px solid #000; padding: 6pt 8pt; vertical-align: top; text-align: left; }
+  th { background: #f0f0f0; }
+  td { text-align: center; }
+  td:first-child { text-align: left; }
   .fig {
     border: 1.5pt dashed #333; padding: 12pt; margin: 14pt 0; background: #fafafa;
     page-break-inside: avoid;
@@ -23,6 +25,7 @@
   ul, ol { margin: 0 0 10pt 18pt; }
   li { margin-bottom: 4pt; text-align: justify; }
   .note { font-size: 10pt; font-style: italic; color: #444; margin: 8pt 0 14pt; }
+  .left td { text-align: left; }
 </style>
 </head>
 <body>
@@ -32,356 +35,470 @@
 
 <h2>4.1 Introduction</h2>
 <p>
-This chapter presents the implementation of EcoWatch Tarkwa, a multi-channel civic environmental reporting platform for the Tarkwa-Nsuaem Municipal Assembly (TNMA). The delivered system comprises a Flutter citizen application, a Node.js/Express REST API with PostgreSQL, a web-based admin portal for agency users, and a USSD channel via Africa’s Talking. The chapter focuses on what was built and how the main modules work, with screenshots of the running application. Design rationale is covered in Chapter Three and is not repeated here except where it clarifies an implementation choice.
+This chapter presents the implementation of EcoWatch Tarkwa, a multi-channel civic environmental reporting platform for the Tarkwa-Nsuaem Municipal Assembly (TNMA). The delivered system comprises a Flutter citizen application, a Node.js/Express REST API with PostgreSQL, a web-based official portal for municipal and agency users, and a USSD channel via Africa's Talking. The chapter focuses on what was built and how the main modules work, with screenshots of the running application. Design rationale is covered in Chapter Three and is not repeated here except where it clarifies an implementation choice.
 </p>
 
 <div class="fig">
   <strong>[INSERT FIGURE 4.1 HERE]</strong>
-  <span class="how">Optional: architecture diagram (only if not already shown in Chapter Three). File: <code>fig4_1_architecture.png</code></span>
-  <p class="caption">Figure 4.1: High-level architecture of EcoWatch Tarkwa (mobile app, API, database, admin portal, and USSD).</p>
+  <span class="how">Optional architecture diagram. File: <code>fig4_1_architecture.png</code></span>
+  <p class="caption">Figure 4.1: High-level architecture of EcoWatch Tarkwa.</p>
 </div>
 
 <h2>4.2 Development Environment</h2>
 <p>
-Development used Flutter/Dart for the cross-platform client, Node.js with Express for the API, and PostgreSQL for persistence. Supporting tools included Docker Compose for the database, Dio for HTTP, flutter_map and Geolocator for mapping and GPS, SharedPreferences for local offline storage, and Africa’s Talking for USSD (and optional SMS). The admin portal is a static web application served by the same backend. Citizen use is anonymous; agency access uses JWT authentication against role-seeded accounts.
+Development used Flutter/Dart for the cross-platform client, Node.js with Express for the API, and PostgreSQL for persistence. Supporting tools included Docker Compose for the local database, Dio for HTTP, flutter_map and Geolocator for mapping and GPS, SharedPreferences for offline storage, and Africa's Talking for USSD (and optional SMS). The official portal is served under <code>/admin</code>. Citizen use is anonymous; officials authenticate with JWT. The project is on GitHub and was deployed to Render with managed PostgreSQL for HTTPS access.
 </p>
 
-<table>
+<table class="left">
   <tr><th>Component</th><th>Technology</th></tr>
   <tr><td>Mobile / web client</td><td>Flutter (Riverpod, go_router, Dio, flutter_map)</td></tr>
   <tr><td>Backend API</td><td>Node.js, Express</td></tr>
   <tr><td>Database</td><td>PostgreSQL</td></tr>
-  <tr><td>Admin portal</td><td>Static SPA under <code>/admin</code></td></tr>
-  <tr><td>USSD / SMS</td><td>Africa’s Talking</td></tr>
-  <tr><td>Hotspot detection</td><td>DBSCAN (Node); optional ML predictions (Python)</td></tr>
+  <tr><td>Official portal</td><td>Static SPA at <code>/admin</code></td></tr>
+  <tr><td>USSD / SMS</td><td>Africa's Talking</td></tr>
+  <tr><td>Hotspot detection</td><td>DBSCAN (Node); optional ML (Python)</td></tr>
+  <tr><td>Hosting</td><td>GitHub + Docker on Render (HTTPS)</td></tr>
 </table>
 <p class="note">Table 4.1: Core technologies used in implementation.</p>
 
 <h2>4.3 Citizen Mobile Application</h2>
 <p>
-The citizen application is anonymous: users do not create accounts. Navigation uses a bottom shell with <strong>Home</strong>, <strong>Track</strong>, <strong>Maps</strong>, <strong>Alerts</strong>, and <strong>Profile</strong>, plus a floating action button that opens <strong>Report Incident</strong>. Localisation supports English and Ghanaian language options configured in the app. Screens that exist in the codebase for in-app staff login/dashboard are not part of the citizen navigation; officials use the web admin portal instead.
+The citizen application is anonymous. On first launch the user sees a splash (start) screen, then a short onboarding sequence, then the main shell: <strong>Home</strong>, <strong>Track</strong>, <strong>Maps</strong>, <strong>Alerts</strong>, and <strong>Profile</strong>, plus a floating button for <strong>Report Incident</strong>. Officials use the web portal, not in-app staff screens.
 </p>
 
-<h3>4.3.1 Home screen</h3>
+<h3>4.3.1 Splash (starting) screen</h3>
 <p>
-The home screen summarises recent local activity and provides quick entry to reporting and tracking. Reports cached on the device are shown first so the interface remains usable on slow networks; a background refresh updates status from the server when connectivity is available.
+When the app opens, a splash screen branded with the EcoWatch icon and name appears briefly on the primary green background. It checks whether the user has already completed onboarding in this install/session. If onboarding is finished, the app proceeds to Home; otherwise it opens the onboarding flow.
 </p>
 
 <div class="fig">
   <strong>[INSERT FIGURE 4.2 HERE]</strong>
-  <span class="how">File: <code>fig4_2_home.png</code> — Home screen of the EcoWatch app.</span>
-  <p class="caption">Figure 4.2: EcoWatch home screen.</p>
+  <span class="how">File: <code>fig4_2_splash.png</code> - cold start / splash with EcoWatch logo</span>
+  <p class="caption">Figure 4.2: EcoWatch splash (starting) screen.</p>
 </div>
 
-<h3>4.3.2 Report Incident</h3>
+<h3>4.3.2 Onboarding screens</h3>
 <p>
-Reporting is the primary citizen workflow. The user selects an environmental category, writes a short description, optionally attaches a photograph, confirms or adjusts the incident location on a map, and submits. On successful upload the server returns a tracking token in the form <code>EW-…</code>, which the citizen can use later without revealing personal identity.
+Onboarding introduces the app in a short swipeable sequence before the citizen reaches Home. The pages explain, in order: welcome to EcoWatch Tarkwa; how to report an incident; how to track a report with a token; how maps support awareness; and that USSD (<code>*384*63693#</code>) is available for users without the full app. The user can move Next through the pages and finish with Get Started. After completion, onboarding is not shown again until the intro flag is cleared.
 </p>
 <p>
-Location uses device GPS where permitted. The map shows the user’s approximate position and a distinct incident pin that can be moved before submission. If GPS is unavailable, the user can still place the pin manually. Offline, the report is stored locally with a pending-upload status and is synchronised when the network returns.
-</p>
-<p>
-Because the Report Incident form is longer than one phone screen, it was captured as <strong>three consecutive screenshots</strong>. In this dissertation they are presented as a <strong>single multi-panel figure</strong> (panels a–c), not as three separate figures.
+Because onboarding has several pages, screenshots may be shown as <strong>one figure with panels</strong> (for example welcome, report, track) rather than five separate figures.
 </p>
 
 <div class="fig">
-  <strong>[INSERT FIGURE 4.3 HERE — THREE PANELS]</strong>
+  <strong>[INSERT FIGURE 4.3 HERE - MULTI-PANEL]</strong>
   <span class="how">
-    Place these three images side by side (or stacked) and caption them once as Figure 4.3:<br>
-    (a) <code>fig4_3a_report_top.png</code> — category, description, media<br>
-    (b) <code>fig4_3b_report_middle.png</code> — map / GPS and address<br>
-    (c) <code>fig4_3c_report_bottom.png</code> — severity controls and submit / success with token
+    (a) <code>fig4_3a_onboard_welcome.png</code> - welcome<br>
+    (b) <code>fig4_3b_onboard_report.png</code> - report intro<br>
+    (c) <code>fig4_3c_onboard_track.png</code> - track / or USSD page
   </span>
-  <p class="caption">Figure 4.3: Report Incident screen — (a) category and evidence; (b) location map; (c) severity and submission.</p>
+  <p class="caption">Figure 4.3: Onboarding screens - (a) welcome; (b) reporting; (c) tracking (or USSD).</p>
 </div>
 
-<h3>4.3.3 Track report</h3>
+<h3>4.3.3 Home screen</h3>
 <p>
-The Track screen accepts the tracking token and retrieves the report’s current status (for example submitted, under review, or resolved). Status history helps the citizen follow municipal or agency progress without logging in. Locally cached tokens can be refreshed from the server when online.
+The home screen summarises recent local activity. Cached reports appear first; a background refresh updates status when online.
 </p>
 
 <div class="fig">
   <strong>[INSERT FIGURE 4.4 HERE]</strong>
-  <span class="how">File: <code>fig4_4_track.png</code></span>
-  <p class="caption">Figure 4.4: Track report screen showing status for a tracking token.</p>
+  <span class="how">File: <code>fig4_4_home.png</code></span>
+  <p class="caption">Figure 4.4: EcoWatch home screen.</p>
 </div>
 
-<h3>4.3.4 Maps and alerts</h3>
+<h3>4.3.4 Report Incident</h3>
 <p>
-The Maps screen presents geospatial context for incidents and related public information (including hotspot visualisations where provided by the API). The Alerts area surfaces announcements and notifications relevant to citizens. Profile and settings cover privacy information, language, help, and manual sync of pending uploads.
+The user selects a category, writes a description, may attach a photo, sets the location on a map, and submits. The server returns a tracking token (<code>EW-...</code>). GPS and a movable incident pin are supported; offline reports queue for later sync.
+</p>
+<p>
+The long form was captured as <strong>three screenshots</strong> shown as <strong>one multi-panel figure</strong> (a–c).
 </p>
 
 <div class="fig">
-  <strong>[INSERT FIGURE 4.5 HERE]</strong>
-  <span class="how">File: <code>fig4_5_maps.png</code> — Maps screen (and optionally a second image for Alerts if you discuss it).</span>
-  <p class="caption">Figure 4.5: Maps view in the EcoWatch citizen application.</p>
+  <strong>[INSERT FIGURE 4.5 HERE - THREE PANELS]</strong>
+  <span class="how">(a) category/media (b) map/GPS (c) severity/submit - files <code>fig4_5a</code> ... <code>fig4_5c</code></span>
+  <p class="caption">Figure 4.5: Report Incident - (a) category and evidence; (b) location; (c) severity and submission.</p>
 </div>
 
-<h3>4.3.5 Offline behaviour</h3>
+<h3>4.3.5 Track report</h3>
 <p>
-Reports are written to local storage first. When the device is online, the client attempts immediate upload; otherwise the report remains queued (<code>pendingUpload</code>). An automatic sync service retries pending items when connectivity is restored. This design matches intermittent mobile data conditions common in the field.
-</p>
-
-<h2>4.4 Backend API and Database</h2>
-<p>
-The Express API exposes versioned routes under <code>/v1</code> for public reporting and tracking, authentication for officials, maps and analytics data, sync, and admin operations. Media uploads are handled on the server (local storage in the current deployment). PostgreSQL stores users (agency roles), categories, reports, status history, hotspots, announcements, and audit-related records as defined in the project schema and seed scripts.
-</p>
-<p>
-Incident categories are linked to responsible agencies so that new reports can be routed for multi-agency handling. Citizen endpoints do not require login; admin endpoints require a valid JWT and enforce role-based access (for example municipal admin, agency admin, environmental officer, researcher, and super admin).
-</p>
-
-<h2>4.5 Admin Portal</h2>
-<p>
-Municipal and agency staff use the web admin portal (served at <code>/admin</code>), not the citizen app. Access is JWT-based. Tabs and actions are shown according to role so that a field officer, agency administrator, municipal administrator, researcher, or super administrator each sees an appropriate workspace. Demo accounts were seeded for demonstration (for example <code>municipal@ecowatch.gov</code>, agency accounts such as <code>epa@ecowatch.gov</code>, and officer accounts such as <code>epa.officer@ecowatch.gov</code>).
-</p>
-
-<p>
-There is <strong>one shared official portal</strong> at <code>/admin</code>. After login, the interface changes by role (header title, Reports tab label, visible tabs, and row actions). That is how the municipal desk, agency desk, field-officer workspace, emergency desk, police-support desk, and research view are delivered—without separate mobile “officer apps.”
-</p>
-
-<table>
-  <tr><th>Role</th><th>Reports tab label</th><th>What they can do</th><th>Extra tabs</th></tr>
-  <tr><td>Super administrator</td><td>All Incidents</td><td>Full control; assign, close, escalate</td><td>All tabs including Audit and Settings</td></tr>
-  <tr><td>Municipal administrator</td><td>All Incidents</td><td>Municipality-wide assign, close, escalate; manage announcements and users</td><td>Performance, Announcements, Agencies &amp; Users</td></tr>
-  <tr><td>Agency administrator</td><td>Agency Incidents</td><td>Assign officers in their agency; close/escalate agency cases; register agency users</td><td>Performance, Agencies &amp; Users</td></tr>
-  <tr><td>Environmental officer</td><td>My Cases</td><td>Update status and investigation notes on <em>assigned</em> cases only; view evidence</td><td>Reports, Map, Analytics, Notifications (no Performance / Users / Audit)</td></tr>
-  <tr><td>Emergency officer</td><td>Emergency Incidents</td><td>Status and notes on emergency-scoped cases</td><td>Same limited set as field officer</td></tr>
-  <tr><td>Police support</td><td>Criminal Support Cases</td><td>Status and notes where police support is required</td><td>Same limited set as field officer</td></tr>
-  <tr><td>Researcher</td><td>Anonymized Incidents</td><td>Read-only analytics/map; tokens, evidence, and actions hidden</td><td>No Performance; no operational actions</td></tr>
-</table>
-<p class="note">Table 4.2: Role-based workspaces in the EcoWatch official portal.</p>
-
-<h3>4.5.1 Login</h3>
-<p>
-Officials sign in with email and password. Successful authentication stores a JWT used for subsequent API calls. Failed login shows an error without exposing whether the email exists. Theme (light/dark) is available on the login screen.
+Citizens enter the tracking token to view status history without logging in.
 </p>
 
 <div class="fig">
   <strong>[INSERT FIGURE 4.6 HERE]</strong>
-  <span class="how">File: <code>fig4_6_admin_login.png</code></span>
-  <p class="caption">Figure 4.6: Official portal login screen.</p>
+  <span class="how">File: <code>fig4_6_track.png</code></span>
+  <p class="caption">Figure 4.6: Track report screen.</p>
 </div>
 
-<h3>4.5.2 Municipal and agency administrator — incident desk</h3>
+<h3>4.3.6 Maps, alerts, and offline behaviour</h3>
 <p>
-For municipal and agency administrators (and the super administrator), the Reports tab is the operational desk. Rows show token, category, status, severity, source (app/USSD), community, description, evidence, and created time, with summary statistics above the table.
-</p>
-<p>
-While a case is in the received state, administrators <strong>assign or reassign</strong> an environmental officer, emergency officer, or police-support officer from the agencies responsible for that category. Leadership can also <strong>close</strong> or <strong>escalate</strong> cases after investigation. Officers—not administrators—perform day-to-day status progression on assigned work. CSV export is available to leadership roles (hidden for field officers).
+Maps show geospatial context; Alerts show announcements. Profile and settings cover privacy, language, help, and sync. Reports save locally first and sync when connectivity returns.
 </p>
 
 <div class="fig">
   <strong>[INSERT FIGURE 4.7 HERE]</strong>
-  <span class="how">File: <code>fig4_7_admin_reports.png</code> — log in as <code>municipal@ecowatch.gov</code> or <code>epa@ecowatch.gov</code>; show Assign officer controls</span>
-  <p class="caption">Figure 4.7: Administrator incident desk (All Incidents / Agency Incidents) with assignment actions.</p>
+  <span class="how">File: <code>fig4_7_maps.png</code></span>
+  <p class="caption">Figure 4.7: Citizen Maps view.</p>
 </div>
 
-<h3>4.5.3 Field officer portal (My Cases)</h3>
+<h2>4.4 Backend API and Database</h2>
 <p>
-Environmental officers use the same URL but enter an <strong>officer workspace</strong>. The header shows the agency name and “Field Officer”; the Reports tab is labelled <strong>My Cases</strong>. Officers do not assign other staff, do not manage users or announcements, and do not see Performance, Audit, or Settings. CSV export is hidden.
+The Express API under <code>/v1</code> covers public reporting/tracking, official authentication, maps, analytics, sync, and admin operations. PostgreSQL stores users, roles, reports, hotspots, announcements, notifications, and audit records. Categories drive multi-agency routing. Portal endpoints require JWT and role checks.
+</p>
+
+<!-- ===================== ADMIN PORTAL - TAB FOCUS ===================== -->
+
+<h2>4.5 Official Admin Portal</h2>
+<p>
+All officials use <strong>one portal</strong> at <code>/admin</code>. After login, EcoWatch shows <strong>only the tabs allowed for that person's role</strong>. The subsections below explain (1) what each tab means, (2) which tabs each role sees, then (3) each workspace with screenshots. Demo passwords are documented separately and are not shown on the login page.
+</p>
+
+<h3>4.5.1 What each tab is for</h3>
+<table class="left">
+  <tr><th>Tab</th><th>Purpose</th></tr>
+  <tr><td><strong>Reports</strong></td><td>Incident list for that user's scope. The tab <em>title</em> changes by role (All Incidents, My Cases, Emergency Incidents, etc.). Admins assign/close/escalate; officers update status and notes; researchers see anonymised rows.</td></tr>
+  <tr><td><strong>Map</strong></td><td>Map of incidents and current DBSCAN hotspots.</td></tr>
+  <tr><td><strong>Analytics</strong></td><td>Charts (trends, category, severity, source) and hotspot growth; CSV export for leadership.</td></tr>
+  <tr><td><strong>Notifications</strong></td><td>In-portal alerts for the signed-in official.</td></tr>
+  <tr><td><strong>Performance</strong></td><td>Caseload / response oversight for leadership only.</td></tr>
+  <tr><td><strong>Announcements</strong></td><td>Publish public messages for the citizen app (municipal / super only).</td></tr>
+  <tr><td><strong>Agencies &amp; Users</strong></td><td>View agencies and register portal staff by role and agency.</td></tr>
+  <tr><td><strong>Audit Logs</strong></td><td>Append-only action history (super administrator only).</td></tr>
+  <tr><td><strong>Settings</strong></td><td>Platform configuration (super administrator only).</td></tr>
+</table>
+<p class="note">Table 4.2: Meaning of each portal tab.</p>
+
+<h3>4.5.2 Tab visibility by role (reader's map of the system)</h3>
+<p>
+Table 4.3 shows exactly which tabs appear after login for each role. Table 4.4 shows how the Reports tab is labelled.
+</p>
+
+<table>
+  <tr>
+    <th>Role</th>
+    <th>Reports</th>
+    <th>Map</th>
+    <th>Analytics</th>
+    <th>Notifications</th>
+    <th>Performance</th>
+    <th>Announcements</th>
+    <th>Agencies &amp; Users</th>
+    <th>Audit</th>
+    <th>Settings</th>
+  </tr>
+  <tr>
+    <td>Super administrator</td>
+    <td>Yes</td><td>Yes</td><td>Yes</td><td>Yes</td><td>Yes</td><td>Yes</td><td>Yes</td><td>Yes</td><td>Yes</td>
+  </tr>
+  <tr>
+    <td>Municipal administrator</td>
+    <td>Yes</td><td>Yes</td><td>Yes</td><td>Yes</td><td>Yes</td><td>Yes</td><td>Yes</td><td>-</td><td>-</td>
+  </tr>
+  <tr>
+    <td>Agency administrator</td>
+    <td>Yes</td><td>Yes</td><td>Yes</td><td>Yes</td><td>Yes</td><td>-</td><td>Yes</td><td>-</td><td>-</td>
+  </tr>
+  <tr>
+    <td>Environmental officer</td>
+    <td>Yes</td><td>Yes</td><td>Yes</td><td>Yes</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td>
+  </tr>
+  <tr>
+    <td>Emergency officer</td>
+    <td>Yes</td><td>Yes</td><td>Yes</td><td>Yes</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td>
+  </tr>
+  <tr>
+    <td>Police support</td>
+    <td>Yes</td><td>Yes</td><td>Yes</td><td>Yes</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td>
+  </tr>
+  <tr>
+    <td>Researcher</td>
+    <td>Yes</td><td>Yes</td><td>Yes</td><td>Yes</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td>
+  </tr>
+</table>
+<p class="note">Table 4.3: Tabs each role can see (Yes = visible, - = hidden).</p>
+
+<table class="left">
+  <tr><th>Role</th><th>Reports tab title</th><th>Main work on that tab</th></tr>
+  <tr><td>Super administrator</td><td>All Incidents</td><td>Full view; assign, close, escalate</td></tr>
+  <tr><td>Municipal administrator</td><td>All Incidents</td><td>Municipal assign, close, escalate</td></tr>
+  <tr><td>Agency administrator</td><td>Agency Incidents</td><td>Assign officers; close/escalate in agency</td></tr>
+  <tr><td>Environmental officer</td><td>My Cases</td><td>Status and notes on assigned cases</td></tr>
+  <tr><td>Emergency officer</td><td>Emergency Incidents</td><td>Status and notes for NADMO/Fire emergencies</td></tr>
+  <tr><td>Police support</td><td>Criminal Support Cases</td><td>Status and notes where police support is needed</td></tr>
+  <tr><td>Researcher</td><td>Anonymized Incidents</td><td>Read-only anonymised list</td></tr>
+</table>
+<p class="note">Table 4.4: Reports tab title and purpose by role.</p>
+
+<p>
+<strong>How to read the system:</strong> administrators get management tabs (Performance, Users; municipal/super also Announcements; super also Audit and Settings). Field officers, emergency officers, and police see only <em>four</em> tabs - Reports, Map, Analytics, Notifications. Researchers also see those four, but Reports is anonymised.
+</p>
+
+<h3>4.5.3 Same layout for every agency (generalised view)</h3>
+<p>
+A reader does <strong>not</strong> need a separate screenshot for EPA, WRC, NADMO, Fire, Forestry, Waste, and Police. All participating agencies use <strong>the same portal screens and the same tab names</strong>. The system is generalised by role, not redesigned per agency.
 </p>
 <p>
-Their main task is to open assigned incidents, review evidence, add <strong>investigation notes</strong>, and update <strong>status</strong> (for example under investigation through to ready for closure). Cases not assigned to them are not actionable. This is the operational “officer portal” for day-to-day field follow-up.
+<strong>Agency administrator (any agency)</strong> always sees these six tabs after login:
+</p>
+<ul>
+  <li>Agency Incidents (Reports)</li>
+  <li>Map</li>
+  <li>Analytics</li>
+  <li>Notifications</li>
+  <li>Performance</li>
+  <li>Agencies &amp; Users</li>
+</ul>
+<p>
+<strong>What changes between agencies</strong> (so one EPA screenshot represents WRC, NADMO, Fire, and the rest):
+</p>
+<ul>
+  <li><strong>Header text</strong> - shows that agency’s name (for example “Environmental Protection Agency” vs “NADMO”).</li>
+  <li><strong>Which incidents appear</strong> - Reports, Map, and Analytics only list cases routed to that agency’s mandate.</li>
+  <li><strong>Which officers can be assigned</strong> - the Assign list is limited to that agency’s staff.</li>
+</ul>
+<p>
+<strong>Agency field officer (any agency)</strong> always sees the same four tabs: My Cases, Map, Analytics, Notifications. Only the header and the assigned cases change (EPA officer vs Forestry officer, and so on).
+</p>
+<p>
+<strong>Screenshot advice for the dissertation:</strong> take one agency-admin figure (e.g. EPA) and one officer figure (e.g. EPA officer). In the caption, state that other agencies share this layout with different header and filtered data. Optionally add a second small panel of NADMO or Fire only if you want to show the header name changing - it is not required for every agency.
+</p>
+
+<table class="left">
+  <tr><th>Example login</th><th>UI / tabs</th><th>Only difference</th></tr>
+  <tr><td><code>epa@ecowatch.gov</code></td><td>Six agency-admin tabs</td><td>EPA-scoped cases and officers</td></tr>
+  <tr><td><code>wrc@ecowatch.gov</code>, <code>nadmo@</code>, <code>fire@</code>, etc.</td><td>Same six tabs</td><td>That agency’s scope and header</td></tr>
+  <tr><td><code>epa.officer@ecowatch.gov</code></td><td>Four officer tabs</td><td>Cases assigned to that officer</td></tr>
+  <tr><td><code>forestry.officer@...</code> (any agency officer)</td><td>Same four tabs</td><td>That officer’s assignments</td></tr>
+  <tr><td><code>nadmoemg@ecowatch.gov</code> / <code>fireemg@...</code></td><td>Four tabs; Reports = Emergency Incidents</td><td>Emergency caseload for NADMO or Fire</td></tr>
+</table>
+<p class="note">Table 4.5: Agencies share one UI; scope and header change, not the tab structure.</p>
+
+<h3>4.5.4 Login</h3>
+<p>
+Officials sign in with email and password. A JWT is stored on success. After login, the navigation bar contains only the tabs for that role from Table 4.3.
 </p>
 
 <div class="fig">
   <strong>[INSERT FIGURE 4.8 HERE]</strong>
-  <span class="how">File: <code>fig4_8_officer_mycases.png</code> — log in as <code>epa.officer@ecowatch.gov</code> / <code>epaoff123</code> (or another <code>{agency}.officer@</code>)</span>
-  <p class="caption">Figure 4.8: Field officer portal — My Cases with status and investigation actions.</p>
+  <span class="how">File: <code>fig4_8_admin_login.png</code></span>
+  <p class="caption">Figure 4.8: Official portal login screen.</p>
 </div>
 
-<h3>4.5.4 Emergency officer and police-support desks</h3>
+<h3>4.5.5 Administrator workspaces (super / municipal / agency)</h3>
 <p>
-<strong>Emergency response officers</strong> see <strong>Emergency Incidents</strong> for urgent NADMO/Fire-style caseloads and update status/notes the same way as environmental officers. <strong>Police support</strong> users see <strong>Criminal Support Cases</strong> for incidents flagged as needing police involvement. Both roles keep the limited officer tab set (no user administration or audit).
+<strong>Tabs this person sees:</strong>
+</p>
+<ul>
+  <li><strong>Super:</strong> Reports, Map, Analytics, Notifications, Performance, Announcements, Agencies &amp; Users, Audit Logs, Settings.</li>
+  <li><strong>Municipal:</strong> Reports, Map, Analytics, Notifications, Performance, Announcements, Agencies &amp; Users.</li>
+  <li><strong>Agency:</strong> Reports, Map, Analytics, Notifications, Performance, Agencies &amp; Users (no Announcements, Audit, or Settings).</li>
+</ul>
+<p>
+On Reports they assign officers, and may close or escalate cases. CSV export is available to these leadership roles.
 </p>
 
 <div class="fig">
   <strong>[INSERT FIGURE 4.9 HERE]</strong>
-  <span class="how">
-    Prefer two panels under one figure if you have both screenshots:<br>
-    (a) <code>fig4_9a_emergency.png</code> — e.g. <code>nadmo.emergency@ecowatch.gov</code> / <code>nadmoemg123</code><br>
-    (b) <code>fig4_9b_police.png</code> — e.g. <code>police.officer@ecowatch.gov</code> / <code>policeoff123</code>
-  </span>
-  <p class="caption">Figure 4.9: (a) Emergency officer desk; (b) Police support desk.</p>
+  <span class="how">Show the administrator tab bar clearly in the screenshot</span>
+  <p class="caption">Figure 4.9: Administrator portal - tabs and incident desk.</p>
 </div>
 
-<h3>4.5.5 Researcher portal</h3>
+<h3>4.5.6 Environmental officer (My Cases)</h3>
 <p>
-Researchers use a read-only research view: <strong>Anonymized Incidents</strong>, with tracking tokens, evidence, free-text description, and action columns hidden. The map emphasises approximate anonymised locations. They may use Analytics for study purposes but cannot assign officers or change case status.
+<strong>Tabs this person sees:</strong> My Cases, Map, Analytics, Notifications only.
+</p>
+<p>
+They update investigation notes and status on cases assigned to them. They cannot open Performance, Announcements, Users, Audit, or Settings.
 </p>
 
 <div class="fig">
   <strong>[INSERT FIGURE 4.10 HERE]</strong>
-  <span class="how">File: <code>fig4_10_researcher.png</code> — <code>researcher@ecowatch.gov</code> / <code>researcher123</code></span>
-  <p class="caption">Figure 4.10: Researcher portal — anonymised incident list.</p>
+  <span class="how">Show only four tabs in the screenshot</span>
+  <p class="caption">Figure 4.10: Officer portal tabs - My Cases, Map, Analytics, Notifications.</p>
 </div>
 
-<h3>4.5.6 Map</h3>
+<h3>4.5.7 Emergency officer and police support</h3>
 <p>
-The Map tab plots incidents in the user’s scope on a Leaflet map. Individual reports appear as pins. Current hotspots from DBSCAN appear as solid circles; predicted risk areas for the next seven days appear as dashed circles. A legend explains priority chips (critical, high, medium). Researchers see an anonymised approximate map instead of full operational detail.
+<strong>Tabs these persons see:</strong> the same four as the field officer (Reports, Map, Analytics, Notifications).
 </p>
+<ul>
+  <li>Emergency officer - Reports titled <strong>Emergency Incidents</strong>.</li>
+  <li>Police support - Reports titled <strong>Criminal Support Cases</strong>.</li>
+</ul>
 
 <div class="fig">
   <strong>[INSERT FIGURE 4.11 HERE]</strong>
-  <span class="how">File: <code>fig4_11_admin_map.png</code></span>
-  <p class="caption">Figure 4.11: Official portal Map tab — incident pins and hotspot overlays.</p>
+  <span class="how">(a) nadmoemg@ecowatch.gov - Emergency Incidents tab (b) police.officer@ - Criminal Support Cases</span>
+  <p class="caption">Figure 4.11: (a) Emergency officer tabs; (b) Police support tabs.</p>
 </div>
 
-<h3>4.5.7 Analytics</h3>
+<h3>4.5.8 Researcher</h3>
 <p>
-The Analytics tab summarises reporting activity for a selected period (daily, weekly, or monthly). Charts include reports over time, category breakdown, severity breakdown, source breakdown (app versus USSD), and hotspot growth from the rolling DBSCAN window. A predictive hotspot section lists forecast locations with risk level and recent report counts. CSV export from the header supports offline reporting for leadership roles.
+<strong>Tabs this person sees:</strong> Anonymized Incidents, Map, Analytics, Notifications. No Performance or management tabs. Tokens, evidence, and actions are hidden.
 </p>
 
 <div class="fig">
   <strong>[INSERT FIGURE 4.12 HERE]</strong>
-  <span class="how">File: <code>fig4_12_admin_analytics.png</code> — if tall, use (a) charts (b) predictions table</span>
-  <p class="caption">Figure 4.12: Analytics tab — trends, category/severity charts, and predictive hotspots.</p>
+  <span class="how">Show anonymised list and four-tab bar</span>
+  <p class="caption">Figure 4.12: Researcher portal tabs and anonymised incidents.</p>
 </div>
 
-<h3>4.5.8 Notifications</h3>
+<h3>4.5.9 Map tab</h3>
 <p>
-The Notifications tab lists portal notifications for the signed-in official (title, message, time, and read status), so staff can follow system or workflow alerts related to their work.
+<strong>Visible to:</strong> every role in Table 4.3. Shows pins and DBSCAN hotspots.
 </p>
 
 <div class="fig">
   <strong>[INSERT FIGURE 4.13 HERE]</strong>
-  <span class="how">File: <code>fig4_13_admin_notifications.png</code></span>
-  <p class="caption">Figure 4.13: Notifications tab.</p>
+  <span class="how">File: <code>fig4_13_admin_map.png</code></span>
+  <p class="caption">Figure 4.13: Map tab.</p>
 </div>
 
-<h3>4.5.9 Performance</h3>
+<h3>4.5.10 Analytics tab</h3>
 <p>
-The Performance tab is shown to municipal/agency leadership and the super administrator (hidden for researchers and field/emergency/police officers). It presents operational performance indicators for caseload oversight within scope.
+<strong>Visible to:</strong> every role in Table 4.3. Leadership can export CSV; officers cannot.
 </p>
 
 <div class="fig">
   <strong>[INSERT FIGURE 4.14 HERE]</strong>
-  <span class="how">File: <code>fig4_14_admin_performance.png</code> — municipal or agency admin</span>
-  <p class="caption">Figure 4.14: Performance tab (leadership roles).</p>
+  <span class="how">File: <code>fig4_14_admin_analytics.png</code></span>
+  <p class="caption">Figure 4.14: Analytics tab.</p>
 </div>
 
-<h3>4.5.10 Announcements</h3>
+<h3>4.5.11 Notifications tab</h3>
 <p>
-Municipal and super administrators can publish announcements (title and body) that citizens receive through the app’s alerts channel. Existing announcements can be listed and removed when no longer relevant. Agency and field officers do not manage announcements.
+<strong>Visible to:</strong> every role in Table 4.3.
 </p>
 
 <div class="fig">
   <strong>[INSERT FIGURE 4.15 HERE]</strong>
-  <span class="how">File: <code>fig4_15_admin_announcements.png</code></span>
-  <p class="caption">Figure 4.15: Announcements tab.</p>
+  <span class="how">File: <code>fig4_15_admin_notifications.png</code></span>
+  <p class="caption">Figure 4.15: Notifications tab.</p>
 </div>
 
-<h3>4.5.11 Agencies and users</h3>
+<h3>4.5.12 Performance tab</h3>
 <p>
-Super, municipal, and agency administrators manage participating agencies and register portal users (name, email, password, role, and agency key)—including creating field-officer accounts that later appear in the My Cases workspace. Citizens never appear as portal users.
+<strong>Visible to:</strong> super, municipal, and agency administrators only (not officers, emergency, police, or researchers).
 </p>
 
 <div class="fig">
   <strong>[INSERT FIGURE 4.16 HERE]</strong>
-  <span class="how">File: <code>fig4_16_admin_users.png</code></span>
-  <p class="caption">Figure 4.16: Agencies &amp; Users tab — register officers and agency staff.</p>
+  <span class="how">File: <code>fig4_16_admin_performance.png</code></span>
+  <p class="caption">Figure 4.16: Performance tab.</p>
 </div>
 
-<h3>4.5.12 Audit logs</h3>
+<h3>4.5.13 Announcements tab</h3>
 <p>
-Super administrators can view append-only audit logs (actor, role, action, entity, timestamp). Entries cannot be deleted from the portal.
+<strong>Visible to:</strong> municipal and super administrators only.
 </p>
 
 <div class="fig">
   <strong>[INSERT FIGURE 4.17 HERE]</strong>
-  <span class="how">File: <code>fig4_17_admin_audit.png</code> — <code>superadmin@ecowatch.gov</code></span>
-  <p class="caption">Figure 4.17: Audit Logs tab.</p>
+  <span class="how">File: <code>fig4_17_admin_announcements.png</code></span>
+  <p class="caption">Figure 4.17: Announcements tab.</p>
 </div>
 
-<h3>4.5.13 Settings</h3>
+<h3>4.5.14 Agencies &amp; Users tab</h3>
 <p>
-Platform settings are restricted to the super administrator.
+<strong>Visible to:</strong> super, municipal, and agency administrators. Used to register officers and other portal staff.
 </p>
 
 <div class="fig">
   <strong>[INSERT FIGURE 4.18 HERE]</strong>
-  <span class="how">File: <code>fig4_18_admin_settings.png</code></span>
-  <p class="caption">Figure 4.18: Settings tab (super administrator).</p>
+  <span class="how">File: <code>fig4_18_admin_users.png</code></span>
+  <p class="caption">Figure 4.18: Agencies &amp; Users tab.</p>
 </div>
 
-<h2>4.6 USSD Channel</h2>
+<h3>4.5.15 Audit Logs tab</h3>
 <p>
-USSD provides access for users without smartphones or reliable app installation. The sandbox short code used during implementation and testing is <code>*384*63693#</code> (Africa’s Talking). The backend webhook (<code>POST /v1/ussd/webhook</code>) drives a session menu to report an incident by category, track by token, and show brief privacy/help text. USSD reports are stored like app reports but with simplified location handling suitable for keypad input. Production deployment would use an approved live short code and a publicly reachable HTTPS callback URL.
+<strong>Visible to:</strong> super administrator only.
 </p>
 
 <div class="fig">
   <strong>[INSERT FIGURE 4.19 HERE]</strong>
-  <span class="how">File: <code>fig4_19_ussd.png</code> — use panels (a)(b)(c) if several dial screens</span>
-  <p class="caption">Figure 4.19: USSD reporting and tracking interface.</p>
+  <span class="how">File: <code>fig4_19_admin_audit.png</code></span>
+  <p class="caption">Figure 4.19: Audit Logs tab.</p>
 </div>
 
-<h2>4.7 Hotspot Detection and Prediction</h2>
+<h3>4.5.16 Settings tab</h3>
 <p>
-Operational hotspot detection clusters recent geolocated reports using DBSCAN in the backend service layer. The configuration used in implementation treats reports within approximately <strong>1 km</strong> (<code>eps</code>) as neighbours and requires a minimum cluster size of <strong>5</strong> points (<code>minPts</code>, with adaptive lowering when data are sparse). A scheduled job recomputes hotspots periodically (on the order of every six hours), persists results, and exposes them for maps and analytics. Priority is derived from report density and related attributes so officers can focus on areas of repeated concern. These outputs are what the portal Map and Analytics tabs display (Figures 4.11 and 4.12).
-</p>
-<p>
-Complementary predictive work lives under the project’s ML hotspot module: training and prediction scripts can export prediction artefacts that the API may serve when available; otherwise the service falls back to heuristic scoring. DBSCAN is the primary operational detector; ML prediction supports anticipatory planning.
+<strong>Visible to:</strong> super administrator only.
 </p>
 
-<h2>4.8 Integration Testing and Deployment Notes</h2>
+<div class="fig">
+  <strong>[INSERT FIGURE 4.20 HERE]</strong>
+  <span class="how">File: <code>fig4_20_admin_settings.png</code></span>
+  <p class="caption">Figure 4.20: Settings tab.</p>
+</div>
+
+<h2>4.6 USSD Channel</h2>
 <p>
-Implementation was verified by running the API against PostgreSQL (Docker), exercising citizen flows on Android (release APK) and on mobile browsers via Flutter web where HTTPS was required for location (for example iPhone Safari through a tunnelled public URL). Africa’s Talking sandbox dialling confirmed USSD menu behaviour when the webhook was publicly reachable. Remaining limitations that affect deployment—such as cloud object storage for media, a live USSD short code, and production hosting—are summarised in Chapter Five rather than expanded here.
+Sandbox short code <code>*384*63693#</code> (Africa's Talking). Webhook <code>POST /v1/ussd/webhook</code> supports report, track, privacy, and help. Production needs a live short code and stable HTTPS callback.
+</p>
+
+<div class="fig">
+  <strong>[INSERT FIGURE 4.21 HERE]</strong>
+  <span class="how">File: <code>fig4_21_ussd.png</code></span>
+  <p class="caption">Figure 4.21: USSD interface.</p>
+</div>
+
+<h2>4.7 Hotspot Detection</h2>
+<p>
+DBSCAN clusters recent reports (<code>eps</code> about 1 km, <code>minPts</code> = 5) to surface areas with concentrated incidents. Results appear on the portal Map and Analytics tabs, where a 30-day rolling hotspot-growth chart shows how clustering changes over time.
+</p>
+
+<h2>4.8 Testing and Deployment</h2>
+<p>
+Verified with local Docker PostgreSQL, Android APK, Flutter web over HTTPS where needed, and Africa's Talking sandbox USSD. The API and portal were deployed to Render (Docker + managed Postgres), with migration on boot and optional seed-on-boot for demo accounts.
 </p>
 
 <h2>4.9 Chapter Summary</h2>
 <p>
-EcoWatch Tarkwa was implemented as an integrated stack: an anonymous Flutter client for reporting and tracking, a secured Express/PostgreSQL backend, a role-based admin portal, USSD access for feature-phone users, and DBSCAN-based hotspot detection with optional predictive outputs. The following chapter concludes the project and outlines limitations and future work.
+EcoWatch Tarkwa implements an anonymous citizen app, Express/PostgreSQL backend, a role-based portal whose <strong>tabs depend on who logs in</strong> (Tables 4.2–4.4), USSD access, hotspot analytics, and cloud hosting. Chapter Five concludes the project.
 </p>
-
-<!-- ===================== CHAPTER 5 ===================== -->
 
 <h1>CHAPTER FIVE</h1>
 <h1 style="page-break-before:avoid; margin-top:0;">CONCLUSION AND RECOMMENDATIONS</h1>
 
 <h2>5.1 Introduction</h2>
 <p>
-This chapter summarises the achievements of the EcoWatch Tarkwa project, states its limitations honestly, and recommends future work. It closes the dissertation by relating the implemented system to the original aim of supporting anonymous, multi-channel environmental incident reporting for the Tarkwa-Nsuaem area.
+This chapter summarises achievements, limitations, and recommendations for EcoWatch Tarkwa.
 </p>
 
 <h2>5.2 Summary of Achievements</h2>
-<p>
-The project delivered a working civic reporting platform with the following outcomes:
-</p>
 <ul>
-  <li><strong>Anonymous mobile reporting</strong> with category selection, media, map-based location, severity, and tracking tokens.</li>
-  <li><strong>Offline-first submission</strong> with local queueing and automatic synchronisation when connectivity returns.</li>
-  <li><strong>Status tracking</strong> for citizens using tokens, without requiring user accounts.</li>
-  <li><strong>Multi-agency backend and admin portal</strong> for case handling, status updates, announcements, and analytics.</li>
-  <li><strong>USSD channel</strong> integrated with Africa’s Talking for users without full smartphone app access.</li>
-  <li><strong>Hotspot detection</strong> using DBSCAN on recent reports, with optional ML-based prediction artefacts for planning support.</li>
+  <li>Anonymous mobile reporting with media, map location, severity, and tracking tokens.</li>
+  <li>Offline-first submission and token-based tracking without citizen accounts.</li>
+  <li><strong>Role-based official portal</strong> with clear tabs per role; agencies share one generalised layout (same tabs, different scope).</li>
+  <li>Splash and onboarding for first-time citizen users, then Home / Track / Maps / Alerts / Profile.</li>
+  <li>USSD channel via Africa's Talking.</li>
+  <li>DBSCAN hotspot detection with a 30-day hotspot-growth trend.</li>
+  <li>Cloud-hosted API and portal with a professional login screen.</li>
 </ul>
-<p>
-Together these components demonstrate a practical architecture for TNMA and partner agencies to receive and act on community environmental reports.
-</p>
 
 <h2>5.3 Limitations</h2>
 <ul>
-  <li><strong>Hosting and scale:</strong> The demonstration environment used local/LAN deployment and tunnels for HTTPS; production would need managed cloud hosting, backups, and monitoring.</li>
-  <li><strong>Media storage:</strong> Uploads are stored on the application server rather than durable object storage (for example S3-compatible storage).</li>
-  <li><strong>USSD:</strong> Testing used the Africa’s Talking sandbox short code; a live short code and always-on public webhook are required for public rollout.</li>
-  <li><strong>On-device image AI:</strong> Photo category suggestion in the client is not a production trained vision model; category selection remains primarily user-driven.</li>
-  <li><strong>USSD geolocation:</strong> Keypad reporting uses simplified location defaults compared with GPS-assisted app reports.</li>
-  <li><strong>Evaluation scope:</strong> Formal large-scale field trials with TNMA officers and residents were outside the core build scope of this academic project.</li>
+  <li>Free-tier cloud hosting may sleep when idle.</li>
+  <li>Media stored on the app server, not object storage.</li>
+  <li>USSD sandbox only; live short code and SMS still needed for full rollout.</li>
+  <li>Image AI is not a production vision model.</li>
+  <li>Large-scale field trials with TNMA were outside this academic build.</li>
 </ul>
 
 <h2>5.4 Recommendations and Future Work</h2>
 <ol>
-  <li>Deploy the API, database, and admin portal to a production cloud environment with HTTPS, backups, and role review with TNMA.</li>
-  <li>Migrate media to object storage and add retention policies aligned with privacy requirements.</li>
-  <li>Obtain a production USSD short code and complete Africa’s Talking live integration and SMS notifications.</li>
-  <li>Train and validate a real on-device or server-side image classifier for the project’s incident categories.</li>
-  <li>Conduct a pilot with municipal and agency officers, collect usability feedback, and refine workflows and hotspot parameters for Tarkwa’s geography.</li>
-  <li>Strengthen privacy documentation and consent messaging for public launch.</li>
+  <li>Use stable always-on hosting with backups.</li>
+  <li>Move media to object storage with retention policies.</li>
+  <li>Obtain production USSD and SMS.</li>
+  <li>Train a real image classifier for categories.</li>
+  <li>Pilot with TNMA and agencies; refine hotspot parameters.</li>
+  <li>Replace demo accounts before public launch.</li>
 </ol>
 
 <h2>5.5 Conclusion</h2>
 <p>
-EcoWatch Tarkwa shows that anonymous, multi-channel environmental reporting is feasible for a Ghanaian municipal context by combining a Flutter citizen app, a structured backend with agency routing, a practical admin portal, USSD reach, and spatial hotspot analysis. Despite limitations typical of a final-year prototype—especially around production hosting, live USSD, and field evaluation—the system meets its core objective: giving residents a safer, clearer path to report environmental incidents and giving authorities a consolidated way to receive, track, and prioritise them. With the recommendations above, the platform can move from academic demonstration toward operational use in the Tarkwa-Nsuaem Municipal Assembly.
+EcoWatch Tarkwa shows that anonymous, multi-channel environmental reporting is feasible for Tarkwa-Nsuaem by combining a Flutter citizen app, a multi-agency backend, a portal whose tabs make each official's job clear, USSD reach, hotspot analysis, and HTTPS deployment. With the recommendations above, the platform can move from academic demonstration toward operational municipal use.
 </p>
 
 </body>

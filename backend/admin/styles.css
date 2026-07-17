@@ -299,10 +299,6 @@ th { background: var(--surface-muted); }
 
 .swatch-marker { background: #2e7d32; border: 2px solid #fff; box-shadow: 0 0 0 1px #ccc; }
 .swatch-current-high { background: rgba(230, 81, 0, 0.35); border: 2px solid #e65100; }
-.swatch-predicted {
-  background: rgba(106, 27, 154, 0.15);
-  border: 2px dashed #6a1b9a;
-}
 
 .priority-chip {
   display: inline-block;
@@ -491,21 +487,3 @@ code {
   text-align: center;
 }
 
-.prediction-section {
-  margin-top: 24px;
-  padding: 20px;
-  background: var(--surface);
-  border-radius: 12px;
-  border: 1px solid var(--border);
-}
-
-.prediction-section h2 {
-  margin: 0 0 8px;
-  font-size: 1.1rem;
-}
-
-.prediction-trend {
-  margin: 12px 0 16px;
-  font-size: 14px;
-  line-height: 1.5;
-}

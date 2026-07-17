@@ -18,7 +18,6 @@ class AnalyticsSummary extends Equatable {
     required this.dailyTrend,
     required this.hotspots,
     required this.hotspotGrowth,
-    this.predictedTrend,
   });
 
   final AnalyticsPeriod period;
@@ -33,7 +32,6 @@ class AnalyticsSummary extends Equatable {
   final List<DailyReportCount> dailyTrend;
   final List<Hotspot> hotspots;
   final List<HotspotGrowthPoint> hotspotGrowth;
-  final TrendPrediction? predictedTrend;
 
   double get resolutionRate =>
       totalReports == 0 ? 0 : resolvedReports / totalReports;
@@ -54,7 +52,6 @@ class AnalyticsSummary extends Equatable {
         'dailyTrend': dailyTrend.map((d) => d.toJson()).toList(),
         'hotspots': hotspots.map((h) => h.toJson()).toList(),
         'hotspotGrowth': hotspotGrowth.map((h) => h.toJson()).toList(),
-        'predictedTrend': predictedTrend?.toJson(),
       };
 
   @override
@@ -110,30 +107,4 @@ class HotspotGrowthPoint extends Equatable {
 
   @override
   List<Object?> get props => [date, hotspotCount];
-}
-
-/// Placeholder for future ML-based trend prediction.
-class TrendPrediction extends Equatable {
-  const TrendPrediction({
-    required this.predictedReportsNextWeek,
-    required this.confidence,
-    required this.risingCategories,
-    required this.generatedAt,
-  });
-
-  final int predictedReportsNextWeek;
-  final double confidence;
-  final List<IncidentCategory> risingCategories;
-  final DateTime generatedAt;
-
-  Map<String, dynamic> toJson() => {
-        'predictedReportsNextWeek': predictedReportsNextWeek,
-        'confidence': confidence,
-        'risingCategories':
-            risingCategories.map((c) => c.name).toList(),
-        'generatedAt': generatedAt.toIso8601String(),
-      };
-
-  @override
-  List<Object?> get props => [predictedReportsNextWeek, confidence];
 }

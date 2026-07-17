@@ -93,7 +93,7 @@ Full list: **[DEMO_ACCOUNTS.md](DEMO_ACCOUNTS.md)**
 - **Automatic routing** — category drives EPA, Fire, NADMO, Police, WRC, Forestry, Waste.
 - **Privacy by design** — anonymous reporting, no voice, researcher anonymization.
 - **Operational workflow** — receive → assign → investigate → resolve → close.
-- **Predictive hotspots** — ML risk areas on the map (no raw algorithm scores in UI).
+- **Hotspot detection** — DBSCAN clusters of recent incidents shown on the map, with a 30-day growth trend.
 
 ## If something breaks
 

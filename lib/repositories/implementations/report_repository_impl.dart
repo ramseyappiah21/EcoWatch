@@ -147,7 +147,18 @@ class ReportRepositoryImpl implements ReportRepository {
           await _upsertFromServer(synced);
           final saved = await _local.getReportByToken(synced.trackingToken) ?? synced;
           return Success(saved);
-        } catch (_) {
+        } catch (e) {
+          // Keep the local draft for later sync, but surface media/upload failures
+          // so the user does not think evidence already reached admin.
+          if (draft.media.any((m) => m.localPath.isNotEmpty)) {
+            return Failure(
+              NetworkException(
+                e is AppException
+                    ? e.message
+                    : 'Report saved on device, but photo/video upload failed. Try sync again.',
+              ),
+            );
+          }
           return Success(draft);
         }
       }

@@ -294,4 +294,41 @@ router.get('/performance', authMiddleware, requireRoles(...PORTAL_ROLES), async 
   });
 });
 
+/**
+ * POST /v1/admin/cleanup-seeded-reports
+ * Removes demo seed incidents (Evidence attached / EW-DEMO-*), keeps real reports.
+ */
+router.post('/cleanup-seeded-reports', authMiddleware, requireRoles('super_admin', 'municipal_admin'), async (req, res) => {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const { rows } = await client.query(`
+      SELECT id, tracking_token
+      FROM reports
+      WHERE description ILIKE '%Evidence attached.%'
+         OR tracking_token LIKE 'EW-DEMO-%'
+    `);
+    if (!rows.length) {
+      await client.query('COMMIT');
+      return res.json({ deleted: 0, remaining: (await client.query('SELECT count(*)::int AS n FROM reports')).rows[0].n });
+    }
+    const ids = rows.map((r) => r.id);
+    await client.query('DELETE FROM reports WHERE id = ANY($1::uuid[])', [ids]);
+    await auditFromUser(req.user, 'cleanup_seeded_reports', 'reports', null, { deleted: ids.length });
+    await client.query('COMMIT');
+    const remaining = await pool.query('SELECT count(*)::int AS n FROM reports');
+    res.json({
+      deleted: ids.length,
+      tokens: rows.slice(0, 20).map((r) => r.tracking_token),
+      remaining: remaining.rows[0].n,
+    });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error(err);
+    res.status(500).json({ error: 'Cleanup failed' });
+  } finally {
+    client.release();
+  }
+});
+
 module.exports = router;

@@ -314,7 +314,7 @@ function applyRoleUI() {
   $('map-legend').textContent = readOnly
     ? 'Anonymized research map (approximate locations only).'
     : municipal
-      ? 'Municipality-wide map. Solid = current hotspots; dashed = predicted.'
+      ? 'Municipality-wide map. Solid circles = current hotspots (DBSCAN clusters).'
       : `Incidents in your scope (${agencyDisplayName()}).`;
 
   document.querySelectorAll('.col-actions').forEach((el) => el.classList.toggle('hidden', readOnly));
@@ -931,8 +931,6 @@ const HOTSPOT_PRIORITY_COLORS = {
   low: '#f57f17',
 };
 
-const PREDICTED_HOTSPOT_COLOR = '#6a1b9a';
-
 function hotspotPriorityColor(priority) {
   return HOTSPOT_PRIORITY_COLORS[priority] || HOTSPOT_PRIORITY_COLORS.medium;
 }
@@ -967,32 +965,11 @@ async function loadMap() {
       .addTo(mapLayer);
   });
 
-  let predictedCount = 0;
-  try {
-    const pred = await api('/analytics/predictions');
-    predictedCount = (pred.predictedHotspots || []).length;
-    (pred.predictedHotspots || []).forEach((p) => {
-      const tint = hotspotPriorityColor(p.priority);
-      L.circle([p.latitude, p.longitude], {
-        radius: p.radiusMeters || 1000,
-        color: PREDICTED_HOTSPOT_COLOR,
-        weight: 2,
-        dashArray: '8 5',
-        fillColor: tint,
-        fillOpacity: 0.12,
-      })
-        .bindPopup(`<b>Predicted hotspot</b><br>${p.priority} risk<br>${p.reportCount30d ?? 0} reports in last 30 days`)
-        .addTo(mapLayer);
-    });
-  } catch (_) {
-    /* predictions optional */
-  }
-
   const legend = $('map-legend');
   const base = legend.textContent.split(' — ')[0];
   legend.textContent = hotspots.length
-    ? `${base} — ${hotspots.length} current hotspot(s), ${predictedCount} predicted. Solid = current; dashed purple = ML forecast.`
-    : `${base} — No current hotspots${predictedCount ? `; ${predictedCount} predicted` : ''}. Dashed purple = ML forecast.`;
+    ? `${base} — ${hotspots.length} current hotspot(s). Solid circles = DBSCAN clusters.`
+    : `${base} — No current hotspots.`;
 
   setTimeout(() => map.invalidateSize(), 100);
 }
@@ -1141,25 +1118,6 @@ function renderAnalyticsCharts(data) {
   }, growth.length > 0);
 }
 
-function renderPredictionSection(data) {
-  const preds = data.predictedHotspots || [];
-  const trend = data.predictedTrend || {};
-
-  $('predicted-trend').innerHTML = trend.predictedReportsNextWeek != null
-    ? `<p><strong>Forecast:</strong> ~${trend.predictedReportsNextWeek} reports expected next week. Rising categories: ${(trend.risingCategories || []).map(categoryLabel).join(', ') || '—'}</p>`
-    : '<p class="meta">No trend forecast yet.</p>';
-
-  $('predictions-body').innerHTML = preds.length
-    ? preds.map((p) => `
-      <tr>
-        <td>${p.latitude?.toFixed(4)}, ${p.longitude?.toFixed(4)}</td>
-        <td><span class="badge badge-${p.priority}">${p.priority}</span></td>
-        <td>${p.reportCount30d ?? '—'}</td>
-      </tr>
-    `).join('')
-    : '<tr><td colspan="3">No high-risk areas predicted for the next 7 days.</td></tr>';
-}
-
 async function loadAnalytics() {
   const period = $('period-select').value;
   const data = await api(`/analytics?period=${period}`);
@@ -1172,12 +1130,10 @@ async function loadAnalytics() {
     <div class="stat-card"><strong>${data.totalReports}</strong>Total (${period})</div>
     <div class="stat-card"><strong>${data.resolvedReports}</strong>Resolved</div>
     <div class="stat-card"><strong>${(data.hotspots || []).length}</strong>Current hotspots</div>
-    <div class="stat-card"><strong>${(data.predictedHotspots || []).length}</strong>Predicted (7d)</div>
     ${!isAgencyAdmin() ? cats : ''}
   `;
 
   renderAnalyticsCharts(data);
-  renderPredictionSection(data);
 }
 
 $('announcement-form')?.addEventListener('submit', async (e) => {

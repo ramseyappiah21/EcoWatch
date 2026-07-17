@@ -111,30 +111,16 @@ Legacy `/admin/officer/*` URLs redirect to `/admin`.
 - **Window:** last 30 days
 - **Job:** runs on startup and every 6 hours
 
-### Predictive hotspots (ML)
+### Hotspot growth trend
 
-Forecasts where clusters are likely in the **next 7 days** using an ensemble of:
-
-- **Random Forest** — tabular features (7/14/30-day counts, severity, category mix)
-- **XGBoost** — same tabular features
-- **LSTM** — 14-day daily sequences per grid cell
-
-Train models:
-
-```powershell
-cd ml\hotspot
-pip install -r requirements.txt
-python train.py --database
-```
-
-Or from backend: `npm run ml:hotspot-train`
+A 30-day rolling window tracks how the number of DBSCAN clusters (and reports within them) changes over time.
 
 API:
 
-- `GET /v1/analytics` — includes `predictedHotspots`, `hotspotGrowth`, `predictedTrend`, `modelMetrics`
-- `GET /v1/analytics/predictions` — detailed ML forecast
+- `GET /v1/analytics` — includes `hotspots` and `hotspotGrowth`
+- `GET /v1/analytics/hotspots` — current hotspot detail with growth trend
 
-Admin **Analytics** tab shows model metrics and predicted cells; **Map** shows dashed blue circles for predictions.
+Admin **Map** shows current hotspots as solid circles; the **Analytics** tab charts hotspot growth.
 
 ## Privacy
 

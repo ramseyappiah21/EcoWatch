@@ -108,21 +108,6 @@ class AnalyticsRepositoryImpl implements AnalyticsRepository {
             ),
           )
           .toList(),
-      predictedTrend: _parsePredictedTrend(data['predictedTrend']),
-    );
-  }
-
-  TrendPrediction? _parsePredictedTrend(dynamic raw) {
-    if (raw is! Map<String, dynamic>) return null;
-    final rising = (raw['risingCategories'] as List<dynamic>? ?? [])
-        .map((c) => parseIncidentCategory(c as String))
-        .toList();
-    return TrendPrediction(
-      predictedReportsNextWeek: raw['predictedReportsNextWeek'] as int? ?? 0,
-      confidence: (raw['confidence'] as num?)?.toDouble() ?? 0,
-      risingCategories: rising,
-      generatedAt: DateTime.tryParse(raw['generatedAt'] as String? ?? '') ??
-          DateTime.now(),
     );
   }
 

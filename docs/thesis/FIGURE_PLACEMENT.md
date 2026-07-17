@@ -1,68 +1,38 @@
 # Thesis figures — placement guide
 
-Copy screenshots into `docs/thesis/figures/`, then insert them in Word where the chapter says **[INSERT FIGURE …]**.
+Copy screenshots into `docs/thesis/figures/`.
 
-## Important: one portal, many role views
-
-EcoWatch does **not** have a separate officer mobile app. Officers, emergency staff, police support, municipal/agency admins, and researchers all use **`/admin`**. Capture screenshots while logged in as each role.
-
-## Multi-part screenshots
-
-Use **one figure number** with panels **(a)(b)(c)** when a screen is too long/wide.
-
-### Report Incident (citizen app)
-
-| File | Panel |
-|------|-------|
-| `fig4_3a_report_top.png` | (a) category / description / media |
-| `fig4_3b_report_middle.png` | (b) map / GPS |
-| `fig4_3c_report_bottom.png` | (c) severity / submit / token |
-
-## Full figure list
-
-### Citizen app
+## Citizen app (order of appearance)
 
 | File | Figure |
 |------|--------|
 | `fig4_1_architecture.png` | 4.1 (optional) |
-| `fig4_2_home.png` | 4.2 |
-| `fig4_3a` … `fig4_3c` | 4.3 |
-| `fig4_4_track.png` | 4.4 |
-| `fig4_5_maps.png` | 4.5 |
+| `fig4_2_splash.png` | 4.2 Splash / start |
+| `fig4_3a_onboard_welcome.png` | 4.3 (a) Onboarding |
+| `fig4_3b_onboard_report.png` | 4.3 (b) |
+| `fig4_3c_onboard_track.png` | 4.3 (c) |
+| `fig4_4_home.png` | 4.4 Home |
+| `fig4_5a` … `fig4_5c` | 4.5 Report Incident (3 panels) |
+| `fig4_6_track.png` | 4.6 Track |
+| `fig4_7_maps.png` | 4.7 Maps |
 
-### Official portal — roles & desks
+## Official portal — do NOT screenshot every agency
+
+Agencies (EPA, WRC, NADMO, Fire, Forestry, Waste, Police) share the **same tabs**.  
+One EPA admin + one EPA officer screenshot is enough. Caption: other agencies look the same; only header and case list change.
 
 | File | Figure | Login |
 |------|--------|-------|
-| `fig4_6_admin_login.png` | 4.6 Login | — |
-| `fig4_7_admin_reports.png` | 4.7 Admin incident desk | `municipal@` or `epa@` |
-| `fig4_8_officer_mycases.png` | 4.8 **Officer portal (My Cases)** | `epa.officer@` / `epaoff123` |
-| `fig4_9a_emergency.png` | 4.9 (a) Emergency desk | `nadmo.emergency@` / `nadmoemg123` |
-| `fig4_9b_police.png` | 4.9 (b) Police desk | `police.officer@` / `policeoff123` |
-| `fig4_10_researcher.png` | 4.10 Researcher | `researcher@` / `researcher123` |
+| `fig4_8_admin_login.png` | 4.8 Login | — |
+| `fig4_9_admin_reports.png` | 4.9 Admin desk | `municipal@` or `epa@` |
+| `fig4_10_officer_mycases.png` | 4.10 Officer (represents all agencies) | `epa.officer@` |
+| `fig4_11a_emergency.png` | 4.11 (a) | `nadmoemg@ecowatch.gov` |
+| `fig4_11b_police.png` | 4.11 (b) | `police.officer@` |
+| `fig4_12_researcher.png` | 4.12 | `researcher@` |
+| `fig4_13` … `fig4_20` | Map, Analytics, Notifications, Performance, Announcements, Users, Audit, Settings | per chapter |
+| `fig4_21_ussd.png` | 4.21 USSD | phone |
 
-### Official portal — shared tabs
+## Emergency passwords
 
-| File | Figure | Notes |
-|------|--------|-------|
-| `fig4_11_admin_map.png` | 4.11 Map | any official |
-| `fig4_12_admin_analytics.png` | 4.12 Analytics | leadership / researcher |
-| `fig4_13_admin_notifications.png` | 4.13 Notifications | any |
-| `fig4_14_admin_performance.png` | 4.14 Performance | municipal / agency admin (not officers) |
-| `fig4_15_admin_announcements.png` | 4.15 Announcements | municipal / super |
-| `fig4_16_admin_users.png` | 4.16 Agencies & Users | municipal / agency / super |
-| `fig4_17_admin_audit.png` | 4.17 Audit | superadmin |
-| `fig4_18_admin_settings.png` | 4.18 Settings | superadmin |
-| `fig4_19_ussd.png` | 4.19 USSD | phone dial screens |
-
-## Seed passwords
-
-| Email | Password |
-|-------|----------|
-| `superadmin@ecowatch.gov` | `superadmin123` |
-| `municipal@ecowatch.gov` | `municipal123` |
-| `epa@ecowatch.gov` | `epa123` |
-| `epa.officer@ecowatch.gov` | `epaoff123` |
-| `nadmo.emergency@ecowatch.gov` | `nadmoemg123` |
-| `police.officer@ecowatch.gov` | `policeoff123` |
-| `researcher@ecowatch.gov` | `researcher123` |
+- `nadmoemg@ecowatch.gov` / `nadmoemg123`
+- `fireemg@ecowatch.gov` / `fireemg123`
