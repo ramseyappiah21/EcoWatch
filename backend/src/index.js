@@ -5,6 +5,7 @@ const cors = require('cors');
 const config = require('./config');
 
 const reportsRouter = require('./routes/reports');
+const mediaRouter = require('./routes/media');
 const authRouter = require('./routes/auth');
 const mapsRouter = require('./routes/maps');
 const analyticsRouter = require('./routes/analytics');
@@ -18,6 +19,7 @@ const { pool } = require('./db/pool');
 
 const app = express();
 
+app.set('trust proxy', 1);
 app.use(cors({ origin: config.corsOrigin }));
 app.use(express.json({ limit: '2mb' }));
 app.use(express.urlencoded({ extended: true }));
@@ -67,6 +69,7 @@ app.get('/health', async (_req, res) => {
 });
 
 app.use('/v1/reports', reportsRouter);
+app.use('/v1/media', mediaRouter);
 app.use('/v1/auth', authRouter);
 app.use('/v1/maps', mapsRouter);
 app.use('/v1/analytics', analyticsRouter);

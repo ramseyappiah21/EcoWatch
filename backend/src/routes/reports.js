@@ -2,6 +2,7 @@ const express = require('express');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const { v4: uuidv4 } = require('uuid');
 const { pool } = require('../db/pool');
 const { generateTrackingToken } = require('../services/tokenService');
 const { computeSeverityForReport } = require('../services/severityService');
@@ -46,9 +47,55 @@ function resolveMediaUrl(storageUrl, req) {
     const filename = storageUrl.split('/').pop();
     storageUrl = `/uploads/${filename}`;
   }
-  if (storageUrl.startsWith('http')) return storageUrl;
-  const host = req?.get?.('host') ? `${req.protocol}://${req.get('host')}` : '';
-  return host ? `${host}${storageUrl.startsWith('/') ? storageUrl : `/${storageUrl}`}` : storageUrl;
+  // Prefer relative paths so HTTPS admin never hits mixed-content http:// URLs.
+  if (storageUrl.startsWith('http')) {
+    try {
+      const u = new URL(storageUrl);
+      return `${u.pathname}${u.search}`;
+    } catch {
+      return storageUrl;
+    }
+  }
+  return storageUrl.startsWith('/') ? storageUrl : `/${storageUrl}`;
+}
+
+function mediaPublicUrl(mediaId) {
+  return `/v1/media/${mediaId}`;
+}
+
+const MEDIA_SELECT_COLS =
+  'id, report_id, media_type, storage_url, mime_type, file_size_bytes, uploaded_by, is_investigation, created_at';
+
+async function insertReportMedia(clientOrPool, {
+  id,
+  reportId,
+  mediaType,
+  mimeType,
+  fileSizeBytes,
+  fileData,
+  uploadedBy = null,
+  isInvestigation = false,
+}) {
+  const storageUrl = mediaPublicUrl(id);
+  const { rows } = await clientOrPool.query(
+    `INSERT INTO report_media (
+       id, report_id, media_type, storage_url, mime_type, file_size_bytes,
+       file_data, uploaded_by, is_investigation
+     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+     RETURNING ${MEDIA_SELECT_COLS}`,
+    [
+      id,
+      reportId,
+      mediaType,
+      storageUrl,
+      mimeType,
+      fileSizeBytes,
+      fileData,
+      uploadedBy,
+      isInvestigation,
+    ],
+  );
+  return rows[0];
 }
 
 function isVisualMediaRow(row) {
@@ -56,7 +103,8 @@ function isVisualMediaRow(row) {
 }
 
 function mapMedia(row, req) {
-  const url = resolveMediaUrl(row.storage_url, req);
+  // Always serve via durable /v1/media/:id (Postgres-backed); falls back to disk if needed.
+  const url = resolveMediaUrl(row.id ? mediaPublicUrl(row.id) : row.storage_url, req);
   return {
     id: row.id,
     type: row.media_type === 'video'
@@ -170,7 +218,7 @@ function mapReport(row, media = [], history = [], req = null, options = {}) {
 async function mediaByReportIds(reportIds) {
   if (!reportIds.length) return {};
   const { rows } = await pool.query(
-    'SELECT * FROM report_media WHERE report_id = ANY($1::uuid[]) ORDER BY created_at',
+    `SELECT ${MEDIA_SELECT_COLS} FROM report_media WHERE report_id = ANY($1::uuid[]) ORDER BY created_at`,
     [reportIds],
   );
   const map = {};
@@ -257,18 +305,15 @@ router.post('/', upload.array('media', 5), async (req, res) => {
           await client.query('ROLLBACK');
           return res.status(400).json({ error: err.message || 'Invalid media file' });
         }
-        const mediaInsert = await client.query(
-          `INSERT INTO report_media (report_id, media_type, storage_url, mime_type, file_size_bytes)
-           VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-          [
-            report.id,
-            mediaType,
-            stored.storageUrl,
-            stored.mimeType,
-            stored.fileSizeBytes,
-          ],
-        );
-        mediaRows.push(mediaInsert.rows[0]);
+        const mediaRow = await insertReportMedia(client, {
+          id: uuidv4(),
+          reportId: report.id,
+          mediaType,
+          mimeType: stored.mimeType,
+          fileSizeBytes: stored.fileSizeBytes,
+          fileData: stored.fileData,
+        });
+        mediaRows.push(mediaRow);
       }
     }
 
@@ -332,7 +377,7 @@ router.get('/track/:token', async (req, res) => {
        FROM report_status_history WHERE report_id = $1 ORDER BY created_at`,
       [report.id],
     ),
-    pool.query('SELECT * FROM report_media WHERE report_id = $1 AND COALESCE(is_investigation, FALSE) = FALSE', [report.id]),
+    pool.query(`SELECT ${MEDIA_SELECT_COLS} FROM report_media WHERE report_id = $1 AND COALESCE(is_investigation, FALSE) = FALSE`, [report.id]),
   ]);
 
   res.json(mapReport(report, media.rows, history.rows, req, { audience: 'citizen' }));
@@ -438,7 +483,7 @@ router.patch('/:id/status', authMiddleware, requireRoles(...STATUS_UPDATE_ROLES,
     );
   }
 
-  const media = await pool.query('SELECT * FROM report_media WHERE report_id = $1', [req.params.id]);
+  const media = await pool.query(`SELECT ${MEDIA_SELECT_COLS} FROM report_media WHERE report_id = $1`, [req.params.id]);
   const history = await pool.query(
     `SELECT status, message, created_at AS timestamp, updated_by
      FROM report_status_history WHERE report_id = $1 ORDER BY created_at`,
@@ -592,19 +637,17 @@ router.post(
       } catch (err) {
         return res.status(400).json({ error: err.message || 'Invalid media file' });
       }
-      const mediaInsert = await pool.query(
-        `INSERT INTO report_media (report_id, media_type, storage_url, mime_type, file_size_bytes, uploaded_by, is_investigation)
-         VALUES ($1, $2, $3, $4, $5, $6, TRUE) RETURNING *`,
-        [
-          req.params.id,
-          mediaType,
-          stored.storageUrl,
-          stored.mimeType,
-          stored.fileSizeBytes,
-          req.user.sub,
-        ],
-      );
-      mediaRows.push(mediaInsert.rows[0]);
+      const mediaRow = await insertReportMedia(pool, {
+        id: uuidv4(),
+        reportId: req.params.id,
+        mediaType,
+        mimeType: stored.mimeType,
+        fileSizeBytes: stored.fileSizeBytes,
+        fileData: stored.fileData,
+        uploadedBy: req.user.sub,
+        isInvestigation: true,
+      });
+      mediaRows.push(mediaRow);
     }
 
     await auditFromUser(req.user, 'investigation_media', 'report', req.params.id, {

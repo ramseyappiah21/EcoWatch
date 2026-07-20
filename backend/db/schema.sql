@@ -83,6 +83,7 @@ CREATE TABLE report_media (
   storage_url   TEXT NOT NULL,
   mime_type     VARCHAR(80),
   file_size_bytes BIGINT,
+  file_data     BYTEA,
   ai_predicted_category VARCHAR(50),
   ai_confidence DOUBLE PRECISION,
   ai_model_version VARCHAR(50),

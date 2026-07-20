@@ -18,7 +18,8 @@ function isAudioFile(file) {
 }
 
 /**
- * Local file storage stub — swap for MinIO/S3/Cloudinary in production.
+ * Store media on local disk (fast cache) and return the bytes for Postgres persistence.
+ * Cloud hosts like Render wipe the container disk on redeploy — DB bytes survive.
  */
 function mediaTypeFromFile(file) {
   if (isAudioFile(file)) {
@@ -50,16 +51,19 @@ async function storeMediaFile(file) {
   const ext = path.extname(file.originalname || '') || extFromMime[mime] || '.jpg';
   const filename = `${uuidv4()}${ext}`;
   const dest = path.join(uploadDir, filename);
-  await fs.promises.rename(file.path, dest);
 
-  // Files are stored on local disk and served by Express at /uploads.
-  // STORAGE_PUBLIC_URL is only used when mediaService uploads to S3/MinIO.
-  const publicUrl = `/uploads/${filename}`;
+  const fileData = await fs.promises.readFile(file.path);
+  await fs.promises.rename(file.path, dest).catch(async () => {
+    await fs.promises.writeFile(dest, fileData);
+    await fs.promises.unlink(file.path).catch(() => {});
+  });
 
   return {
-    storageUrl: publicUrl,
-    mimeType: file.mimetype,
-    fileSizeBytes: file.size,
+    storageUrl: `/uploads/${filename}`,
+    mimeType: file.mimetype || 'application/octet-stream',
+    fileSizeBytes: file.size || fileData.length,
+    fileData,
+    filename,
   };
 }
 
@@ -78,4 +82,10 @@ async function deleteStoredFile(storageUrl) {
   }
 }
 
-module.exports = { storeMediaFile, deleteStoredFile, uploadDir, mediaTypeFromFile, isAudioFile };
+module.exports = {
+  storeMediaFile,
+  deleteStoredFile,
+  uploadDir,
+  mediaTypeFromFile,
+  isAudioFile,
+};
