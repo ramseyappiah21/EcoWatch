@@ -6,7 +6,6 @@
   <title>EcoWatch USSD Demo</title>
   <style>
     :root {
-      --bg: #0f172a;
       --phone: #111827;
       --screen: #ecfdf5;
       --green: #059669;
@@ -15,69 +14,155 @@
     * { box-sizing: border-box; }
     body {
       margin: 0; min-height: 100vh; display: grid; place-items: center;
-      font-family: Segoe UI, system-ui, sans-serif; background: linear-gradient(160deg, #064e3b, #0f172a);
+      font-family: Segoe UI, system-ui, sans-serif;
+      background: linear-gradient(160deg, #064e3b, #0f172a);
       color: #e2e8f0; padding: 24px;
     }
     .wrap { width: min(420px, 100%); }
     h1 { font-size: 1.15rem; margin: 0 0 8px; text-align: center; }
-    p { margin: 0 0 18px; text-align: center; color: #cbd5e1; font-size: 0.92rem; line-height: 1.4; }
+    p { margin: 0 0 18px; text-align: center; color: #cbd5e1; font-size: 0.92rem; line-height: 1.45; }
     .phone {
       background: var(--phone); border-radius: 28px; padding: 18px 14px 22px;
       box-shadow: 0 20px 50px rgba(0,0,0,.35); border: 2px solid #334155;
     }
     .notch { width: 90px; height: 8px; border-radius: 8px; background: #1f2937; margin: 0 auto 14px; }
     .screen {
-      background: var(--screen); color: var(--text); min-height: 280px; border-radius: 12px;
+      background: var(--screen); color: var(--text); min-height: 260px; border-radius: 12px;
       padding: 14px; white-space: pre-wrap; font-family: ui-monospace, Consolas, monospace;
       font-size: 0.92rem; line-height: 1.45; overflow: auto;
     }
-    .meta { margin-top: 10px; font-size: 0.75rem; color: #94a3b8; text-align: center; }
+    .meta { margin-top: 10px; font-size: 0.8rem; color: #94a3b8; text-align: center; min-height: 1.2em; }
     .row { display: grid; grid-template-columns: 1fr auto; gap: 8px; margin-top: 12px; }
     input, button {
       border-radius: 10px; border: 1px solid #334155; padding: 12px 14px; font-size: 1rem;
     }
     input { background: #0b1220; color: #e2e8f0; width: 100%; }
     button { background: var(--green); color: white; border: none; cursor: pointer; font-weight: 600; }
+    button:disabled { opacity: 0.45; cursor: not-allowed; }
     button.secondary { background: #334155; }
     .keys { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px; }
-    .keys button { padding: 14px 0; background: #1f2937; }
+    .keys button { padding: 14px 0; background: #1f2937; font-size: 1.1rem; }
     .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
     .ok { color: #6ee7b7; }
     .err { color: #fca5a5; }
+    .hint { margin-top: 8px; font-size: 0.78rem; color: #94a3b8; text-align: center; }
   </style>
 </head>
 <body>
   <div class="wrap">
     <h1>EcoWatch USSD Demo</h1>
     <p>
-      This page calls your live webhook directly (same code as Africa&rsquo;s Talking).
-      Use it for the defense if the AT simulator shows a network error.
+      1) Press <strong>Call</strong><br />
+      2) Tap a number (e.g. <strong>1</strong>) — it sends automatically<br />
+      3) For community name, type below then press <strong>Send</strong>
     </p>
     <div class="phone">
       <div class="notch"></div>
-      <div class="screen" id="screen">Dial *384*63693# and press Call</div>
+      <div class="screen" id="screen">Press Call to start (*384*63693#)</div>
       <div class="meta" id="status">Ready</div>
       <div class="row">
-        <input id="code" value="*384*63693#" aria-label="Short code" />
-        <button id="call" type="button">Call</button>
+        <input id="reply" type="text" placeholder="Type community name here…" disabled />
+        <button id="send" type="button" disabled>Send</button>
       </div>
       <div class="keys" id="keys"></div>
       <div class="actions">
-        <button class="secondary" id="send" type="button" disabled>Send</button>
+        <button id="call" type="button">Call</button>
         <button class="secondary" id="end" type="button">End / Reset</button>
       </div>
+      <div class="hint" id="path">Path: (none)</div>
     </div>
   </div>
   <script>
-    const screen = document.getElementById('screen');
-    const status = document.getElementById('status');
-    const input = document.getElementById('code');
+    const screenEl = document.getElementById('screen');
+    const statusEl = document.getElementById('status');
+    const replyEl = document.getElementById('reply');
     const sendBtn = document.getElementById('send');
+    const callBtn = document.getElementById('call');
+    const pathEl = document.getElementById('path');
     const keys = document.getElementById('keys');
+
     let sessionId = '';
     let text = '';
     let active = false;
-    let pending = '';
+    let busy = false;
+
+    function setStatus(msg, kind) {
+      statusEl.textContent = msg;
+      statusEl.className = kind ? `meta ${kind}` : 'meta';
+    }
+
+    function setActive(on) {
+      active = on;
+      replyEl.disabled = !on;
+      sendBtn.disabled = !on;
+      callBtn.disabled = on;
+    }
+
+    function resetUi() {
+      sessionId = 'demo_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+      text = '';
+      busy = false;
+      setActive(false);
+      replyEl.value = '';
+      pathEl.textContent = 'Path: (none)';
+      screenEl.textContent = 'Press Call to start (*384*63693#)';
+      setStatus('Ready');
+    }
+
+    async function postUssd(nextText) {
+      if (busy) return;
+      busy = true;
+      setStatus('Calling webhook…');
+      try {
+        const body = new URLSearchParams({
+          sessionId,
+          phoneNumber: '+233241234567',
+          networkCode: '62001',
+          serviceCode: '*384*63693#',
+          text: nextText,
+        });
+        const res = await fetch('/v1/ussd/webhook', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body,
+        });
+        const raw = (await res.text()).trim();
+        if (!res.ok) throw new Error('HTTP ' + res.status + ': ' + raw);
+
+        const end = /^END\b/.test(raw);
+        const msg = raw.replace(/^(CON|END)\s+/, '');
+        screenEl.textContent = msg || '(empty response)';
+        pathEl.textContent = 'Path: ' + (nextText || '(start)');
+        text = nextText;
+        replyEl.value = '';
+
+        if (end) {
+          setActive(false);
+          setStatus('Session ended — press Call to start again', 'ok');
+        } else {
+          setActive(true);
+          setStatus('Tap a number, or type text and press Send');
+          replyEl.focus();
+        }
+      } catch (err) {
+        screenEl.textContent = String(err.message || err);
+        setStatus('Webhook error — open /health then retry', 'err');
+        setActive(false);
+      } finally {
+        busy = false;
+      }
+    }
+
+    async function sendChoice(choice) {
+      if (!active || busy) return;
+      const value = String(choice || '').trim();
+      if (!value) {
+        setStatus('Enter a choice first (tap 1–9 or type text)', 'err');
+        return;
+      }
+      const next = text ? (text + '*' + value) : value;
+      await postUssd(next);
+    }
 
     '123456789*0#'.split('').forEach((k) => {
       const b = document.createElement('button');
@@ -85,89 +170,36 @@
       b.textContent = k;
       b.addEventListener('click', () => {
         if (!active) {
-          input.value += k;
+          setStatus('Press Call first', 'err');
           return;
         }
-        pending += k;
-        status.textContent = `Input: ${pending || '(empty)'}`;
+        // Single-key menus send immediately (normal USSD UX).
+        sendChoice(k);
       });
       keys.appendChild(b);
     });
 
-    function newSession() {
-      sessionId = 'demo_' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+    callBtn.addEventListener('click', async () => {
+      sessionId = 'demo_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
       text = '';
-      pending = '';
-      active = false;
-      sendBtn.disabled = true;
-    }
-
-    async function postUssd(nextText) {
-      status.textContent = 'Calling webhook…';
-      status.className = 'meta';
-      const body = new URLSearchParams({
-        sessionId,
-        phoneNumber: '+233241234567',
-        networkCode: '62001',
-        serviceCode: input.value || '*384*63693#',
-        text: nextText,
-      });
-      const res = await fetch('/v1/ussd/webhook', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body,
-      });
-      const raw = (await res.text()).trim();
-      if (!res.ok) throw new Error(`HTTP ${res.status}: ${raw}`);
-      const end = raw.startsWith('END ');
-      const msg = raw.replace(/^(CON|END)\s/, '');
-      screen.textContent = msg || '(empty response)';
-      status.textContent = end ? 'Session ended' : 'Continue — enter choice then Send';
-      status.className = end ? 'meta ok' : 'meta';
-      active = !end;
-      sendBtn.disabled = end;
-      if (end) {
-        text = '';
-        pending = '';
-      }
-      return { end, msg, raw };
-    }
-
-    document.getElementById('call').addEventListener('click', async () => {
-      try {
-        newSession();
-        active = true;
-        sendBtn.disabled = false;
-        await postUssd('');
-      } catch (err) {
-        screen.textContent = String(err.message || err);
-        status.textContent = 'Webhook error';
-        status.className = 'meta err';
-        active = false;
-        sendBtn.disabled = true;
-      }
+      replyEl.value = '';
+      setActive(true);
+      await postUssd('');
     });
 
     sendBtn.addEventListener('click', async () => {
-      if (!active) return;
-      try {
-        text = text ? `${text}*${pending}` : pending;
-        pending = '';
-        await postUssd(text);
-      } catch (err) {
-        screen.textContent = String(err.message || err);
-        status.textContent = 'Webhook error';
-        status.className = 'meta err';
+      await sendChoice(replyEl.value);
+    });
+
+    replyEl.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        sendChoice(replyEl.value);
       }
     });
 
-    document.getElementById('end').addEventListener('click', () => {
-      newSession();
-      screen.textContent = 'Dial *384*63693# and press Call';
-      status.textContent = 'Ready';
-      status.className = 'meta';
-      input.value = '*384*63693#';
-    });
+    document.getElementById('end').addEventListener('click', resetUi);
+    resetUi();
   </script>
 </body>
 </html>
