@@ -113,21 +113,33 @@ router.get('/webhook', (_req, res) => {
 });
 
 router.post('/webhook', async (req, res) => {
-  console.log('[ussd] incoming', {
-    sessionId: req.body?.sessionId,
-    phoneNumber: req.body?.phoneNumber,
-    serviceCode: req.body?.serviceCode,
-    text: req.body?.text,
-  });
+  // Always reply as Africa's Talking plain text — never JSON/HTML.
+  res.set('Content-Type', 'text/plain; charset=utf-8');
+  res.set('Cache-Control', 'no-store');
 
-  const { sessionId, phoneNumber, text = '' } = req.body;
-  const rawParts = text ? text.split('*') : [];
-  const selections = normalizeNavigation(rawParts);
-
-  let message;
-  let endSession = false;
+  const reply = (endSession, message) => {
+    const body = `${endSession ? 'END' : 'CON'} ${String(message || '').trim()}`;
+    console.log('[ussd] reply', body.slice(0, 160));
+    return res.status(200).send(body);
+  };
 
   try {
+    console.log('[ussd] incoming', {
+      sessionId: req.body?.sessionId,
+      phoneNumber: req.body?.phoneNumber,
+      serviceCode: req.body?.serviceCode,
+      text: req.body?.text,
+      contentType: req.headers['content-type'],
+    });
+
+    // Support both form-urlencoded (AT default) and JSON bodies.
+    const body = req.body || {};
+    const sessionId = body.sessionId || body.sessionid;
+    const phoneNumber = body.phoneNumber || body.phone;
+    const text = body.text == null ? '' : String(body.text);
+    const rawParts = text ? text.split('*') : [];
+    const selections = normalizeNavigation(rawParts);
+
     const step = renderUssd(selections);
 
     if (step.trackLookup) {
@@ -136,13 +148,12 @@ router.post('/webhook', async (req, res) => {
         [step.token],
       );
       if (rows.length) {
-        message = `Status: ${citizenStatusLabel(rows[0].status)}\nThank you.`;
-        endSession = true;
-      } else {
-        message = withBackHint('Token not found. Try again.');
-        endSession = false;
+        return reply(true, `Status: ${citizenStatusLabel(rows[0].status)}\nThank you.`);
       }
-    } else if (step.submitReport) {
+      return reply(false, withBackHint('Token not found. Try again.'));
+    }
+
+    if (step.submitReport) {
       const token = generateTrackingToken();
       const { category, description, community } = resolveReport(selections);
       const reporterPhone = normalizePhone(phoneNumber);
@@ -170,27 +181,24 @@ router.post('/webhook', async (req, res) => {
       await pool.query(
         `INSERT INTO ussd_sessions (session_id, phone_hash, payload)
          VALUES ($1, $2, $3)`,
-        [sessionId, hashPhone(phoneNumber || ''), JSON.stringify(req.body)],
+        [sessionId, hashPhone(phoneNumber || ''), JSON.stringify(body)],
       );
 
       if (reporterPhone) {
         sendSmsSafe(reporterPhone, tokenSubmittedMessage(token));
       }
 
-      message = `Report submitted!\nToken: ${token}\nYou will also receive this token by SMS.`;
-      endSession = true;
-    } else {
-      message = step.message;
-      endSession = step.endSession;
+      return reply(
+        true,
+        `Report submitted!\nToken: ${token}\nYou will also receive this token by SMS.`,
+      );
     }
+
+    return reply(Boolean(step.endSession), step.message);
   } catch (err) {
     console.error('[ussd]', err);
-    message = 'Sorry, something went wrong. Please try again later.';
-    endSession = true;
+    return reply(true, 'Sorry, something went wrong. Please try again later.');
   }
-
-  res.set('Content-Type', 'text/plain');
-  res.send(`${endSession ? 'END' : 'CON'} ${message}`);
 });
 
 module.exports = router;
